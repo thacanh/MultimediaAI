@@ -46,7 +46,12 @@ export default function Sidebar({
         {/* Header: Toggle & New Project */}
         <div className="p-3">
           <div className="flex items-center justify-between mb-4 px-1">
-            {!isCollapsed && <span className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">CreativeIQ</span>}
+            {!isCollapsed && (
+              <div className="flex items-center gap-2">
+                <img src="/logeCreativeIQ.png" alt="CreativeIQ Logo" className="h-8 w-auto object-contain" />
+                <span className="text-sm font-black text-slate-800 uppercase tracking-[0.1em]">CreativeIQ</span>
+              </div>
+            )}
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
               className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors"

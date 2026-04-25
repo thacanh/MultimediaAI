@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Video, Target, Users, Upload, ArrowRight, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AnalysisContext } from '../types';
@@ -37,6 +37,15 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
     audience: null
   });
   const [isUploaded, setIsUploaded] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+      setIsUploaded(true);
+    }
+  };
 
   const isReady = context.video_type !== '' && context.goal !== '' && isUploaded;
 
@@ -133,22 +142,31 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
                   <Upload size={16} className="text-primary" />
                   Dữ liệu Video <span className="text-red-500">*</span>
                 </label>
+                <input 
+                  type="file" 
+                  accept="video/*" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                />
                 <button 
-                  onClick={() => setIsUploaded(true)}
+                  onClick={() => fileInputRef.current?.click()}
                   className={`w-full flex items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed transition-all ${
                     isUploaded 
                       ? 'border-emerald-200 bg-emerald-50/30' 
                       : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'
                   }`}
                 >
-                  {isUploaded ? (
+                  {isUploaded && selectedFile ? (
                     <>
                       <div className="bg-emerald-500 text-white p-2 rounded-full shadow-lg shadow-emerald-500/20">
                         <Check size={20} strokeWidth={3} />
                       </div>
-                      <div className="text-left">
+                      <div className="text-left flex-1 min-w-0">
                         <p className="text-sm font-bold text-emerald-700 leading-tight">Video đã sẵn sàng</p>
-                        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight mt-1 opacity-70">video_final.mp4 (12MB)</p>
+                        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight mt-1 opacity-70 truncate" title={selectedFile.name}>
+                          {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(1)}MB)
+                        </p>
                       </div>
                     </>
                   ) : (

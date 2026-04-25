@@ -8,7 +8,10 @@ export default function TopBar({ onUpgrade }: TopBarProps) {
   return (
     <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm flex justify-between items-center px-6 h-16">
       <div className="flex items-center gap-4">
-        <span className="text-xl font-bold tracking-tight text-slate-900">CreativeIQ AI</span>
+        <div className="flex items-center gap-2">
+          <img src="/logeCreativeIQ.png" alt="CreativeIQ Logo" className="h-8 w-auto object-contain" />
+          <span className="text-xl font-bold tracking-tight text-slate-900">CreativeIQ AI</span>
+        </div>
       </div>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
