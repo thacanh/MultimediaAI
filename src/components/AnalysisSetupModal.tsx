@@ -26,7 +26,6 @@ const goals = [
 
 const audiences = [
   'Người mới bắt đầu',
-  'Đại chúng',
   'Chuyên gia'
 ];
 
@@ -55,15 +54,15 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
-            onClick={onClose} 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={onClose}
           />
-          
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -87,7 +86,7 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
                   <Video size={16} className="text-primary" />
                   Loại Video <span className="text-red-500">*</span>
                 </label>
-                <select 
+                <select
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
                   value={context.video_type}
                   onChange={(e) => setContext({ ...context, video_type: e.target.value })}
@@ -108,11 +107,10 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
                     <button
                       key={g}
                       onClick={() => setContext({ ...context, goal: g })}
-                      className={`text-left p-3 rounded-xl border text-xs font-bold transition-all ${
-                        context.goal === g 
-                          ? 'bg-primary/5 border-primary text-primary shadow-sm' 
-                          : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
-                      }`}
+                      className={`text-left p-3 rounded-xl border text-xs font-bold transition-all ${context.goal === g
+                        ? 'bg-primary/5 border-primary text-primary shadow-sm'
+                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
+                        }`}
                     >
                       {g}
                     </button>
@@ -126,12 +124,12 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
                   <Users size={16} className="text-primary" />
                   Đối tượng khán giả
                 </label>
-                <select 
+                <select
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
                   value={context.audience || ''}
                   onChange={(e) => setContext({ ...context, audience: e.target.value || null })}
                 >
-                  <option value="">Không bắt buộc (Chung chung)...</option>
+                  <option value="">Đại chúng</option>
                   {audiences.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
@@ -142,20 +140,19 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
                   <Upload size={16} className="text-primary" />
                   Dữ liệu Video <span className="text-red-500">*</span>
                 </label>
-                <input 
-                  type="file" 
-                  accept="video/*" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
+                <input
+                  type="file"
+                  accept="video/*"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
-                  className={`w-full flex items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed transition-all ${
-                    isUploaded 
-                      ? 'border-emerald-200 bg-emerald-50/30' 
-                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'
-                  }`}
+                  className={`w-full flex items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed transition-all ${isUploaded
+                    ? 'border-emerald-200 bg-emerald-50/30'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'
+                    }`}
                 >
                   {isUploaded && selectedFile ? (
                     <>
@@ -181,14 +178,13 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
 
             {/* Footer */}
             <div className="p-8 pt-4 flex gap-4 bg-slate-50/50 border-t border-slate-100">
-              <button 
+              <button
                 disabled={!isReady}
                 onClick={() => onStart(context)}
-                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl font-bold transition-all shadow-lg ${
-                  isReady 
-                    ? 'bg-primary text-white hover:bg-primary-hover active:scale-[0.98] shadow-primary/20' 
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                }`}
+                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl font-bold transition-all shadow-lg ${isReady
+                  ? 'bg-primary text-white hover:bg-primary-hover active:scale-[0.98] shadow-primary/20'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                  }`}
               >
                 Bắt đầu phân tích
                 <ArrowRight size={20} strokeWidth={3} />

@@ -16,16 +16,16 @@ export const MOCK_SEGMENTS: SegmentData[] = [
       audio_energy: 3,
     },
     issues: [
-      { type: 'Phần mở đầu thiếu điểm nhấn thị giác (visual hook)', severity: 'High' },
-      { type: 'Nhịp độ quá chậm để giữ chân người xem trong giây đầu tiên', severity: 'High' },
-      { type: 'Năng lượng âm thanh thấp làm giảm tác động', severity: 'Medium' },
+      { type: 'Thiếu điểm nhấn thị giác (Visual Hook) ở phần mở đầu', severity: 'High' },
+      { type: 'Nhịp độ chưa đủ để tối ưu hóa tỷ lệ giữ chân (Retention Rate)', severity: 'High' },
+      { type: 'Cường độ âm thanh thấp, làm giảm mức độ tác động', severity: 'Medium' },
     ],
     impact:
-      'Người xem quyết định ở lại hoặc rời đi trong vòng 3 giây đầu tiên - phần mở đầu chậm, năng lượng thấp khiến tỷ lệ bỏ qua tăng trên 70%.',
+      'Người xem thường đưa ra quyết định lướt qua trong 3 giây đầu. Việc thiếu điểm nhấn và cường độ âm thanh thấp có thể làm tăng tỷ lệ thoát (Drop-off Rate) lên đến 70%.',
     feedback:
-      'Phần mở đầu không có điểm nhấn thị giác. Chuyển động gần như tĩnh và năng lượng âm thanh phẳng. Đây là phân đoạn có rủi ro cao nhất.',
+      'Phân đoạn mở đầu hiện thiếu một "Hook" đủ mạnh. Chuyển động trên khung hình khá tĩnh và mức năng lượng âm thanh chưa đạt mức tối ưu. Đây là giai đoạn có rủi ro thoát trang cao nhất.',
     suggestedFix:
-      'Bắt đầu bằng cảnh quay hình ảnh mạnh nhất của bạn. Thêm văn bản động hoặc đồ họa chuyển động trong 1.5 giây đầu tiên. Tăng âm lượng nhạc nền intro thêm +3dB.',
+      'Cân nhắc sử dụng phân cảnh có mức độ tương tác cao nhất để mở đầu. Tích hợp hiệu ứng văn bản động (Kinetic Typography) trong 1.5 giây đầu tiên. Đề xuất tăng Gain nhạc nền (Intro BGM) thêm khoảng +3dB.',
   },
   {
     start: 4,
@@ -37,13 +37,13 @@ export const MOCK_SEGMENTS: SegmentData[] = [
       text_density: 3,
       audio_energy: 8,
     },
-    issues: [{ type: 'Lỗi đồng bộ âm thanh-hình ảnh nhẹ', severity: 'Low' }],
+    issues: [{ type: 'Độ trễ đồng bộ âm thanh - hình ảnh (A/V Sync) ở mức thấp', severity: 'Low' }],
     impact:
-      'Sự đa dạng về thị giác mạnh mẽ ở thời điểm này giúp giữ chân những người xem đã vượt qua phần mở đầu.',
+      'Mức độ đa dạng về thị giác ở phân đoạn này hoạt động hiệu quả, giúp duy trì sự chú ý của tệp khán giả đã vượt qua phần Hook.',
     feedback:
-      'Nhịp điệu ở đây rất tốt. Sự đa dạng thị giác cao, mật độ văn bản sạch sẽ và âm thanh tràn đầy năng lượng kết hợp rất hài hòa. Một sự phục hồi mạnh mẽ từ phần mở đầu.',
+      'Nhịp độ (Pacing) được xử lý rất tốt. Sự kết hợp giữa chuyển động hình ảnh, mật độ văn bản tối ưu và cường độ âm thanh tạo ra trải nghiệm liền mạch. Đây là điểm phục hồi ấn tượng sau phần mở đầu.',
     suggestedFix:
-      'Điều chỉnh điểm cắt tại giây 5.2 sớm hơn 1 khung hình để thắt chặt nhịp đồng bộ.',
+      'Có thể vi chỉnh (fine-tune) điểm cắt (cut point) tại mốc 5.2s sớm hơn 1 frame để đạt độ đồng bộ hoàn hảo hơn.',
   },
   {
     start: 8,
@@ -55,13 +55,13 @@ export const MOCK_SEGMENTS: SegmentData[] = [
       text_density: 5,
       audio_energy: 8,
     },
-    issues: [{ type: 'Rủi ro quá tải thông tin nhẹ', severity: 'Low' }],
+    issues: [{ type: 'Cảnh báo nhẹ: Nguy cơ quá tải lượng thông tin (Cognitive Overload)', severity: 'Low' }],
     impact:
-      'Nhịp độ ổn định giúp giữ sự chú ý; người xem đã sẵn sàng để tiếp nhận thông điệp cốt lõi.',
+      'Nhịp độ được duy trì ổn định giúp củng cố mức độ tập trung, chuẩn bị cho người xem tiếp nhận thông điệp cốt lõi (Core Message).',
     feedback:
-      'Sự đồng bộ hình ảnh-âm thanh rất mạnh mẽ. Mật độ văn bản hơi tăng nhẹ nhưng vẫn trong tầm kiểm soát. Phân đoạn này củng cố đà tăng trưởng.',
+      'Sự đồng bộ A/V tiếp tục thể hiện hiệu suất cao. Mặc dù mật độ văn bản có sự gia tăng, tổng thể vẫn nằm trong giới hạn tối ưu. Phân đoạn này củng cố tốt đà giữ chân khán giả.',
     suggestedFix:
-      'Giảm bớt một dòng văn bản trên màn hình để hình ảnh có thêm không gian "thở".',
+      'Cân nhắc tinh giản một dòng văn bản phụ trên màn hình để tạo thêm "không gian thở" (Negative Space) cho thị giác.',
   },
   {
     start: 12,
@@ -74,17 +74,17 @@ export const MOCK_SEGMENTS: SegmentData[] = [
       audio_energy: 3,
     },
     issues: [
-      { type: 'Quá tải thông tin - mật độ văn bản ở mức báo động', severity: 'High' },
-      { type: 'Hình ảnh trì trệ, không có chuyển động', severity: 'High' },
-      { type: 'Năng lượng âm thanh sụt giảm mạnh', severity: 'Medium' },
-      { type: 'Giọng đọc bị đều, thiếu cảm xúc', severity: 'Medium' },
+      { type: 'Cảnh báo đỏ: Mật độ văn bản vượt ngưỡng tối ưu', severity: 'High' },
+      { type: 'Hình ảnh thiếu sự thay đổi, dẫn đến cảm giác tĩnh lặng', severity: 'High' },
+      { type: 'Cường độ âm thanh sụt giảm đáng kể', severity: 'Medium' },
+      { type: 'Giọng đọc (Voiceover) đang thiếu sự nhấn nhá và cảm xúc', severity: 'Medium' },
     ],
     impact:
-      'Sự kết hợp giữa quá tải nhận thức và hình ảnh tĩnh tạo ra điểm sụt giảm người xem lớn nhất dự kiến trong video.',
+      'Sự kết hợp giữa quá tải thông tin dạng văn bản và hình ảnh tĩnh tạo ra điểm sụt giảm tương tác (Engagement Drop) nghiêm trọng nhất trong toàn bộ video.',
     feedback:
-      'Mật độ văn bản tối đa trong khi hình ảnh hoàn toàn tĩnh. Năng lượng âm thanh rơi xuống mức thấp nhất. Đây là phân đoạn rủi ro lớn nhất.',
+      'Mật độ văn bản đạt đỉnh điểm trong bối cảnh hình ảnh không có sự thay đổi. Đồng thời, cường độ âm thanh rơi xuống mức thấp nhất. Đây là rủi ro lớn đối với tỷ lệ xem hết (Completion Rate).',
     suggestedFix:
-      'Chia khối văn bản này thành 3 hiệu ứng xuất hiện riêng biệt. Sử dụng chữ động (kinetic typography) hoặc biểu tượng thay vì các đoạn văn bản liệt kê.',
+      'Phân tách khối văn bản hiện tại thành 3 lần xuất hiện (animations) độc lập. Thay thế các gạch đầu dòng bằng các biểu tượng trực quan (Visual Icons) hoặc chữ động.',
   },
   {
     start: 16,
@@ -97,37 +97,37 @@ export const MOCK_SEGMENTS: SegmentData[] = [
       audio_energy: 5,
     },
     issues: [
-      { type: 'Kết thúc có cảm giác đột ngột', severity: 'Medium' },
-      { type: 'Năng lượng giọng nói vẫn đang phục hồi', severity: 'Medium' },
-      { type: 'Lời kêu gọi hành động (CTA) thiếu sự nhấn mạnh thị giác', severity: 'Low' },
+      { type: 'Chuyển cảnh kết thúc (Outro) khá đột ngột', severity: 'Medium' },
+      { type: 'Năng lượng Voiceover chưa phục hồi hoàn toàn', severity: 'Medium' },
+      { type: 'Call-to-Action (CTA) thiếu sự nổi bật về mặt thị giác', severity: 'Low' },
     ],
     impact:
-      'Kết thúc yếu làm giảm khả năng ghi nhớ thông điệp và giảm khả năng chuyển đổi CTA xuống khoảng 30%.',
+      'Phần kết thúc thiếu lực làm giảm khả năng ghi nhớ thông điệp (Brand Recall) và tác động tiêu cực đến Tỷ lệ chuyển đổi (Conversion Rate) của CTA, dự kiến giảm khoảng 30%.',
     feedback:
-      'Năng lượng đang phục hồi nhưng chưa đạt đến mức kết thúc mạnh mẽ. CTA thiếu sự nổi bật thị giác và âm lượng âm thanh vẫn còn thấp.',
+      'Cường độ âm thanh có dấu hiệu phục hồi nhưng chưa đủ để tạo ra một cái kết bùng nổ. Lời kêu gọi hành động (CTA) bị chìm do thiếu điểm nhấn thị giác và âm lượng chưa tương xứng.',
     suggestedFix:
-      'Thêm hiệu ứng zoom-punch 0.5 giây vào CTA. Tăng nhạc nền (BGM) thêm +4dB và tăng âm lượng giọng nói cho khớp với năng lượng của đoạn từ 4–8 giây.',
+      'Áp dụng hiệu ứng Zoom-punch 0.5s vào phần CTA. Nâng mức nhạc nền (BGM) thêm +4dB và điều chỉnh EQ giọng nói để đồng bộ với mức năng lượng của phân đoạn 4-8s.',
   },
 ];
 
 export const OVERALL_SCORE = 6.2;
 
 export const GLOBAL_SUMMARY = {
-  headline: 'Phần giữa mạnh mẽ, mở đầu và kết thúc yếu',
+  headline: 'Hiệu suất duy trì tốt ở phần thân, cần tối ưu Hook và Call-to-Action',
   insight:
-    'Video của bạn phục hồi tốt sau khởi đầu chậm, nhưng giây đầu tiên và CTA kết thúc đều cần các chỉnh sửa mục tiêu để tối đa hóa khả năng giữ chân và chuyển đổi.',
+    'Video có đà phục hồi tương tác rất tốt ở các phân đoạn giữa, tuy nhiên 3 giây đầu tiên và phần kêu gọi hành động (CTA) cần được tinh chỉnh để tối đa hóa Tỷ lệ giữ chân (Retention) và Chuyển đổi (Conversion).',
   keyIssues: [
-    'Phần mở đầu thiếu sức hút thị giác - rủi ro bỏ qua cao',
-    'Quá tải thông tin từ giây 12-16 là điểm rơi chính',
-    'Năng lượng giọng nói quá phẳng trong suốt video',
+    'Thiếu "Hook" thị giác mạnh mẽ ở phần mở đầu - rủi ro Drop-off cao.',
+    'Quá tải thông tin văn bản từ giây 12-16, nguy cơ sụt giảm tương tác.',
+    'Năng lượng giọng đọc (Voiceover Dynamics) chưa có sự đột phá.',
   ],
 };
 
 export const NARRATIVE_TREND = [
-  { label: 'Mở đầu (0-4s)', status: 'weak', note: 'Năng lượng thấp, rủi ro bỏ qua cao' },
-  { label: 'Tăng tốc (4-12s)', status: 'strong', note: 'Ổn định - đà phát triển tốt' },
-  { label: 'Rủi ro đỉnh điểm (12-16s)', status: 'weak', note: 'Khu vực sụt giảm nghiêm trọng' },
-  { label: 'Kết thúc (16-20s)', status: 'neutral', note: 'Đang phục hồi, CTA cần cải thiện' },
+  { label: 'Mở đầu (0-4s)', status: 'weak', note: 'Cường độ thấp, cần cải thiện Visual Hook' },
+  { label: 'Tăng tốc (4-12s)', status: 'strong', note: 'Nhịp độ tối ưu - Đà giữ chân tốt' },
+  { label: 'Rủi ro đỉnh điểm (12-16s)', status: 'weak', note: 'Cảnh báo sụt giảm tương tác (Drop-off Zone)' },
+  { label: 'Kết thúc (16-20s)', status: 'neutral', note: 'Đang phục hồi, cần làm nổi bật CTA' },
 ];
 
 export type TrendStatus = 'weak' | 'neutral' | 'strong';
