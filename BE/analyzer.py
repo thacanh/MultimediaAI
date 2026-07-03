@@ -789,11 +789,31 @@ def call_vnpt_bot_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
         return generate_heuristic_review(payload)
 
     raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    
+    # Trích xuất phần JSON nằm giữa ```json ... ``` hoặc { ... }
+    json_str = None
+    if "```json" in raw:
+        try:
+            json_str = raw.split("```json", 1)[1].split("```", 1)[0].strip()
+        except Exception:
+            pass
+    elif "```" in raw:
+        try:
+            json_str = raw.split("```", 1)[1].split("```", 1)[0].strip()
+        except Exception:
+            pass
+            
+    if not json_str:
+        start_idx = raw.find("{")
+        end_idx = raw.rfind("}")
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            json_str = raw[start_idx:end_idx+1].strip()
+            
+    if not json_str:
+        json_str = raw
 
     try:
-        data = json.loads(raw)
+        data = json.loads(json_str)
         key_issues = [
             IssueItem(
                 feature=item.get("feature", "unknown"),
@@ -825,7 +845,7 @@ def call_vnpt_bot_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
             segment_reviews=segment_reviews,
         )
     except Exception as e:
-        logger.warning(f"Không thể phân tích phản hồi đánh giá của VNPT SmartBot dưới dạng JSON: {e}. Phản hồi thô: {raw}")
+        logger.warning(f"Không thể phân tích phản hồi đánh giá của VNPT SmartBot dưới dạng JSON: {e}. Phản hồi thô (200 ký tự đầu): {raw[:200]}...")
         return None
 
 
