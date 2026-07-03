@@ -399,9 +399,9 @@ export default function AnalysisDetail({ context, analysisResult, videoFile, vid
       </section>
 
       {/* ── VNPT SMART ANALYTICS & SUMMARY ── */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Speech Summary by VNPT SmartVoice */}
-        <div className="lg:col-span-2 bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden">
+      <section>
+        {/* Speech Summary by VNPT SmartVoice */}
+        <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50" />
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2">
@@ -412,43 +412,6 @@ export default function AnalysisDetail({ context, analysisResult, videoFile, vid
             <p className="text-slate-600 text-sm leading-relaxed font-medium bg-slate-50 p-5 rounded-2xl border border-slate-100 whitespace-pre-line">
               {analysisResult.payload.summary || "Không phát hiện lời thoại hoặc chưa có tóm tắt đàm thoại."}
             </p>
-          </div>
-        </div>
-
-        {/* Right: SmartVision Stats */}
-        <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50" />
-          <div className="relative z-10 space-y-4 w-full">
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">VNPT SmartVision</span>
-            <h4 className="text-xl font-bold text-slate-900">Thống kê đối tượng</h4>
-            
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                <span className="text-[9px] font-bold text-slate-400 uppercase">Người</span>
-                <p className="text-2xl font-black text-slate-800 font-mono mt-1">{analysisResult.payload.person_count ?? 0}</p>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                <span className="text-[9px] font-bold text-slate-400 uppercase">Khuôn mặt</span>
-                <p className="text-2xl font-black text-slate-800 font-mono mt-1">{analysisResult.payload.face_count ?? 0}</p>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                <span className="text-[9px] font-bold text-slate-400 uppercase">Xe cộ</span>
-                <p className="text-2xl font-black text-slate-800 font-mono mt-1">{analysisResult.payload.vehicle_count ?? 0}</p>
-              </div>
-            </div>
-            
-            {analysisResult.payload.license_plates && analysisResult.payload.license_plates.length > 0 && (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-3">
-                <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1.5">Biển số xe phát hiện</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {analysisResult.payload.license_plates.map((plate, idx) => (
-                    <span key={idx} className="text-[10px] font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded border border-slate-300 font-mono">
-                      {plate}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </section>
