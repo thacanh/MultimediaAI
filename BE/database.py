@@ -32,6 +32,9 @@ def _build_engine():
             pool_size=10,
             max_overflow=20,
         )
+        # Tự động cấu hình SSL cho các kết nối đám mây (Aiven Cloud, v.v.)
+        if "aivencloud.com" in DB_URL or "ssl" in DB_URL.lower():
+            kwargs["connect_args"] = {"ssl": {}}
     return create_engine(DB_URL, echo=False, **kwargs)
 
 
