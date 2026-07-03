@@ -571,6 +571,69 @@ def analyse_video(video_path: str, filename: str) -> AnalysisResponse:
     return AnalysisResponse(payload=payload, review=review)
 
 
+def call_gemini_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
+    """Gửi dữ liệu đặc trưng đến Gemini API để nhận đánh giá chi tiết chất lượng cao khi SmartBot bị lỗi/hạn chế."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        logger.warning("GEMINI_API_KEY không được thiết lập. Bỏ qua gọi Gemini fallback.")
+        return None
+
+    logger.info("Đang gọi Gemini 2.5 Flash làm phương án dự phòng...")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    payload_json = payload.model_dump_json(indent=2)
+    
+    prompt = f"{SYSTEM_PROMPT}\n\nPhân tích dữ liệu video sau và trả về bản đánh giá JSON bằng tiếng Việt:\n\n{payload_json}"
+    
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }],
+        "generationConfig": {
+            "responseMimeType": "application/json"
+        }
+    }
+    try:
+        res = requests.post(url, headers=headers, json=body, timeout=20)
+        res.raise_for_status()
+        res_json = res.json()
+        raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
+        
+        # Parse JSON
+        data = json.loads(raw_text)
+        key_issues = [
+            IssueItem(
+                feature=item.get("feature", "unknown"),
+                severity=item.get("severity", "Medium"),
+                description=item.get("description", ""),
+                recommendation=item.get("recommendation", ""),
+            )
+            for item in data.get("key_issues", [])
+        ]
+        segment_reviews = [
+            SegmentReviewItem(
+                segment_index=int(item.get("segment_index", 0)),
+                impact=item.get("impact", ""),
+                feedback=item.get("feedback", ""),
+                suggested_fix=item.get("suggested_fix", ""),
+            )
+            for item in data.get("segment_reviews", [])
+        ]
+        return VnptBotReview(
+            headline=data.get("headline", ""),
+            overall_score=float(data.get("overall_score", 8.0)),
+            grade=data.get("grade", "B"),
+            insight=data.get("insight", ""),
+            key_issues=key_issues,
+            segment_highlights=data.get("segment_highlights", []),
+            suggested_fixes=data.get("suggested_fixes", []),
+            segment_reviews=segment_reviews,
+        )
+    except Exception as e:
+        logger.error(f"Gọi Gemini API làm phương án dự phòng thất bại: {e}")
+        return None
+
+
 def call_vnpt_bot_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
     """Gửi dữ liệu đặc trưng đến VNPT SmartBot để đánh giá và phân tích phản hồi JSON."""
     from vnpt_client import VnptClient
@@ -625,8 +688,13 @@ def call_vnpt_bot_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
     prompt = f"Phân tích dữ liệu video sau và trả về bản đánh giá JSON bằng tiếng Việt:\n\n{payload_json}"
 
     raw = vnpt.review_with_bot(prompt, SYSTEM_PROMPT)
-    if not raw:
-        return None
+    if not raw or "Xin lỗi" in raw or "hỏi câu khác" in raw or "fallback" in raw:
+        logger.warning(f"VNPT SmartBot returned fallback response or empty: {repr(raw)}. Redirecting to Gemini fallback...")
+        gemini_review = call_gemini_reviewer(payload)
+        if gemini_review:
+            return gemini_review
+        if not raw:
+            return None
 
     raw = raw.strip()
     if raw.startswith("```"):
