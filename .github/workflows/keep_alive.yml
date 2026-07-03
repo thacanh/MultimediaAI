@@ -1,0 +1,15 @@
+name: Keep HF Space Alive
+
+on:
+  schedule:
+    # Runs every 40 minutes
+    - cron: '*/40 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Hugging Face Space Health Endpoint
+        run: |
+          curl -I -s -o /dev/null -w "%{http_code}" https://thacanh-creativeiq.hf.space/health
