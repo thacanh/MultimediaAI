@@ -628,7 +628,7 @@ class VnptClient:
             res.raise_for_status()
             
             import json
-            latest_text = ""
+            card_texts = {}
             
             for line in res.iter_lines():
                 if not line:
@@ -642,16 +642,21 @@ class VnptClient:
                         chunk_json = json.loads(data_content)
                         if "object" in chunk_json and "sb" in chunk_json["object"]:
                             sb = chunk_json["object"]["sb"]
+                            card_info = sb.get("card_data_info", {})
+                            current_idx = card_info.get("current", 1) # Lấy index của card hiện tại
                             card_data = sb.get("card_data", [])
                             for card in card_data:
                                 t = card.get("text", "")
                                 if t:
-                                    latest_text = t # Ghi đè lấy chuỗi tích lũy mới nhất
+                                    card_texts[current_idx] = t # Lưu/Cập nhật bản tích lũy của card này
                     except Exception as parse_err:
                         logger.warning(f"Failed to parse SSE line: {parse_err}. Line content: {line_str}")
             
-            if latest_text:
-                return latest_text
+            if card_texts:
+                # Sắp xếp theo thứ tự index và ghép lại thành văn bản hoàn chỉnh
+                sorted_keys = sorted(card_texts.keys())
+                full_text = "".join(card_texts[k] for k in sorted_keys)
+                return full_text
             return None
         except Exception as e:
             logger.error(f"VNPT review_with_bot failed: {e}")
