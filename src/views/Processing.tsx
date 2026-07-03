@@ -37,12 +37,12 @@ function SegmentRow({
   const pct = total > 0 ? Math.round(((index + (status === 'done' ? 1 : 0)) / total) * 100) : 0;
   return (
     <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-300 ${status === 'done' ? 'bg-emerald-50/60 border-emerald-100' :
-        status === 'active' ? 'bg-indigo-50/50 border-primary/20' :
-          'bg-slate-50 border-slate-100 opacity-40'
+      status === 'active' ? 'bg-indigo-50/50 border-primary/20' :
+        'bg-slate-50 border-slate-100 opacity-40'
       }`}>
       <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[10px] font-black transition-all ${status === 'done' ? 'bg-emerald-500 text-white' :
-          status === 'active' ? 'bg-primary text-white' :
-            'bg-slate-200 text-slate-400'
+        status === 'active' ? 'bg-primary text-white' :
+          'bg-slate-200 text-slate-400'
         }`}>
         {status === 'done' ? '✓' : index + 1}
       </div>
@@ -297,8 +297,8 @@ export default function Processing({ file, context, onCancel, onComplete }: Proc
               (id === 'review' && phase === 'done');
             return (
               <div key={id} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all ${isDonePhase ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
-                  isActive ? 'bg-indigo-50 border-primary/20 text-primary' :
-                    'bg-slate-50 border-slate-100 text-slate-400'
+                isActive ? 'bg-indigo-50 border-primary/20 text-primary' :
+                  'bg-slate-50 border-slate-100 text-slate-400'
                 }`}>
                 {isDonePhase ? <CheckCircle2 size={12} /> : isActive ? <Loader2 size={12} className="animate-spin" /> : icon}
                 {label}

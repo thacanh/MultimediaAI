@@ -8,7 +8,7 @@ import {
   TokenResponse, AnalysisRecord, AnalysisRecordDetail, AnalyticsSummary,
 } from './types';
 
-const BASE = '/api';
+const BASE = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
