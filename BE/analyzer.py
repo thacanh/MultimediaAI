@@ -146,6 +146,11 @@ def _read_segment_frames(cap: cv2.VideoCapture, start_sec: float, end_sec: float
         ret, frame = cap.read()
         if not ret or frame is None:
             break
+        # Downscale to max height of 720px to save RAM and avoid OOM crash on Render Free Tier (512MB)
+        h, w = frame.shape[:2]
+        if h > 720:
+            ratio = 720.0 / h
+            frame = cv2.resize(frame, (int(w * ratio), 720), interpolation=cv2.INTER_AREA)
         frames.append(frame)
     return frames
 
