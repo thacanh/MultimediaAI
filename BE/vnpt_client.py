@@ -642,9 +642,9 @@ class VnptClient:
                         chunk_json = json.loads(data_content)
                         if "object" in chunk_json and "sb" in chunk_json["object"]:
                             sb = chunk_json["object"]["sb"]
-                            card_info = sb.get("card_data_info", {})
+                            card_info = sb.get("card_data_info") or {}
                             current_idx = card_info.get("current", 1) # Lấy index của card hiện tại
-                            card_data = sb.get("card_data", [])
+                            card_data = sb.get("card_data") or []
                             for card in card_data:
                                 t = card.get("text", "")
                                 if t:
