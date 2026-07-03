@@ -146,11 +146,6 @@ def _read_segment_frames(cap: cv2.VideoCapture, start_sec: float, end_sec: float
         ret, frame = cap.read()
         if not ret or frame is None:
             break
-        # Downscale to max height of 720px to save RAM and avoid OOM crash on Render Free Tier (512MB)
-        h, w = frame.shape[:2]
-        if h > 720:
-            ratio = 720.0 / h
-            frame = cv2.resize(frame, (int(w * ratio), 720), interpolation=cv2.INTER_AREA)
         frames.append(frame)
     return frames
 
@@ -383,20 +378,10 @@ def extract_features_stream(video_path: str, filename: str):
                 all_frames = _read_segment_frames(cap, start, end, fps)
 
                 # Subsample từ buffer đã decode — không seek thêm
-                def _downscale_frames(frm_list: list[np.ndarray], max_h: int = 360) -> list[np.ndarray]:
-                    res_list = []
-                    for f in frm_list:
-                        h_f, w_f = f.shape[:2]
-                        if h_f > max_h:
-                            ratio = max_h / h_f
-                            f = cv2.resize(f, (int(w_f * ratio), max_h), interpolation=cv2.INTER_AREA)
-                        res_list.append(f)
-                    return res_list
-
                 ocr_frames    = _subsample_evenly(all_frames, OCR_FRAMES_PER_SEGMENT)
-                visual_frames = _downscale_frames(_subsample_evenly(all_frames, VISUAL_FRAMES_PER_SEGMENT), 360)
-                motion_frames = _downscale_frames(_subsample_consecutive(all_frames, MOTION_FRAMES_PER_SEGMENT, stride=4), 360)
-                cut_frames    = _downscale_frames(_subsample_cut(all_frames, fps), 360)
+                visual_frames = _subsample_evenly(all_frames, VISUAL_FRAMES_PER_SEGMENT)
+                motion_frames = _subsample_consecutive(all_frames, MOTION_FRAMES_PER_SEGMENT, stride=4)
+                cut_frames    = _subsample_cut(all_frames, fps)
 
                 a_start = int(start * sr)
                 a_end = int(end * sr)
@@ -441,12 +426,15 @@ def extract_features_stream(video_path: str, filename: str):
                 }
 
                 results: dict[str, float | None] = {}
-                for key, fn in task_map.items():
-                    try:
-                        results[key] = fn()
-                    except Exception as exc:
-                        logger.warning(f"Extractor '{key}' failed: {exc}")
-                        results[key] = None
+                with ThreadPoolExecutor(max_workers=6) as pool:
+                    future_to_key = {pool.submit(fn): key for key, fn in task_map.items()}
+                    for future in as_completed(future_to_key):
+                        key = future_to_key[future]
+                        try:
+                            results[key] = future.result()
+                        except Exception as exc:
+                            logger.warning(f"Extractor '{key}' failed: {exc}")
+                            results[key] = None
 
                 features = FeatureScores(
                     visual_dynamics =results["visual_dynamics"],
