@@ -571,67 +571,163 @@ def analyse_video(video_path: str, filename: str) -> AnalysisResponse:
     return AnalysisResponse(payload=payload, review=review)
 
 
-def call_gemini_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
-    """Gửi dữ liệu đặc trưng đến Gemini API để nhận đánh giá chi tiết chất lượng cao khi SmartBot bị lỗi/hạn chế."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        logger.warning("GEMINI_API_KEY không được thiết lập. Bỏ qua gọi Gemini fallback.")
-        return None
-
-    logger.info("Đang gọi Gemini 2.5 Flash làm phương án dự phòng...")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    payload_json = payload.model_dump_json(indent=2)
-    
-    prompt = f"{SYSTEM_PROMPT}\n\nPhân tích dữ liệu video sau và trả về bản đánh giá JSON bằng tiếng Việt:\n\n{payload_json}"
-    
-    headers = {"Content-Type": "application/json"}
-    body = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }],
-        "generationConfig": {
-            "responseMimeType": "application/json"
-        }
-    }
-    try:
-        res = requests.post(url, headers=headers, json=body, timeout=20)
-        res.raise_for_status()
-        res_json = res.json()
-        raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
-        
-        # Parse JSON
-        data = json.loads(raw_text)
-        key_issues = [
-            IssueItem(
-                feature=item.get("feature", "unknown"),
-                severity=item.get("severity", "Medium"),
-                description=item.get("description", ""),
-                recommendation=item.get("recommendation", ""),
-            )
-            for item in data.get("key_issues", [])
-        ]
-        segment_reviews = [
-            SegmentReviewItem(
-                segment_index=int(item.get("segment_index", 0)),
-                impact=item.get("impact", ""),
-                feedback=item.get("feedback", ""),
-                suggested_fix=item.get("suggested_fix", ""),
-            )
-            for item in data.get("segment_reviews", [])
-        ]
+def generate_heuristic_review(payload: AnalysisPayload) -> VnptBotReview:
+    """Tạo nhận xét đánh giá dựa trên luật (rule-based) trực tiếp từ các đặc trưng kỹ thuật."""
+    segs = payload.segments
+    if not segs:
         return VnptBotReview(
-            headline=data.get("headline", ""),
-            overall_score=float(data.get("overall_score", 8.0)),
-            grade=data.get("grade", "B"),
-            insight=data.get("insight", ""),
-            key_issues=key_issues,
-            segment_highlights=data.get("segment_highlights", []),
-            suggested_fixes=data.get("suggested_fixes", []),
-            segment_reviews=segment_reviews,
+            headline="Video chưa có dữ liệu phân đoạn",
+            overall_score=5.0,
+            grade="C",
+            insight="Không tìm thấy phân đoạn video để phân tích.",
+            key_issues=[],
+            segment_highlights=[],
+            suggested_fixes=[],
+            segment_reviews=[]
         )
-    except Exception as e:
-        logger.error(f"Gọi Gemini API làm phương án dự phòng thất bại: {e}")
-        return None
+    
+    # Tính giá trị trung bình của các đặc trưng
+    avg_speech_rate = sum(s.features.speech_rate for s in segs if s.features.speech_rate is not None) / len(segs) if segs else 0
+    avg_sync = sum(s.features.sync_alignment for s in segs if s.features.sync_alignment is not None) / len(segs) if segs else 0
+    avg_focus = sum(s.features.visual_focus for s in segs if s.features.visual_focus is not None) / len(segs) if segs else 0
+    avg_clutter = sum(s.features.clutter_level for s in segs if s.features.clutter_level is not None) / len(segs) if segs else 0
+    avg_dynamics = sum(s.features.visual_dynamics for s in segs if s.features.visual_dynamics is not None) / len(segs) if segs else 0
+    
+    pros = []
+    cons = []
+    fixes = []
+    issues = []
+    
+    # 1. Đánh giá Tốc độ nói (WPM)
+    if avg_speech_rate > 190:
+        cons.append("Tốc độ nói khá nhanh dễ gây ngộp thông tin")
+        fixes.append("Nên giảm tốc độ nói ở các phân đoạn cao trào xuống khoảng 160-170 WPM")
+        issues.append(IssueItem(
+            feature="speech_rate",
+            severity="High",
+            description="Tốc độ nói trung bình đạt mức cao, người nghe khó tiếp thu kịp.",
+            recommendation="Ngắt nghỉ hơi tự nhiên giữa các câu từ 0.5 - 1 giây."
+        ))
+    elif 130 <= avg_speech_rate <= 185:
+        pros.append("Tốc độ nói vừa phải, dễ nghe và lôi cuốn")
+    else:
+        cons.append("Tốc độ nói hơi chậm, nhịp điệu chưa đủ lôi cuốn")
+        fixes.append("Tăng tốc độ truyền tải lời nói hoặc cắt bớt khoảng lặng giữa các câu")
+        issues.append(IssueItem(
+            feature="speech_rate",
+            severity="Medium",
+            description="Tốc độ nói chậm, có thể làm giảm sự chú ý của người xem.",
+            recommendation="Đẩy nhanh tốc độ nói lên khoảng 15% hoặc chèn thêm nhạc nền tiết tấu nhanh."
+        ))
+
+    # 2. Đánh giá Đồng bộ Audio-Video
+    if avg_sync > 0.4:
+        pros.append("Độ đồng bộ âm thanh và hình ảnh rất tốt")
+    else:
+        cons.append("Nhịp chuyển cảnh chưa khớp hoàn hảo với nhịp nhạc nền")
+        fixes.append("Căn chỉnh lại các điểm cắt cảnh khớp chính xác vào beat chính của nhạc")
+        issues.append(IssueItem(
+            feature="sync_alignment",
+            severity="Medium",
+            description="Độ lệch nhịp chuyển cảnh so với âm thanh làm giảm trải nghiệm nghe nhìn.",
+            recommendation="Sử dụng phần mềm dựng phim tự động bắt beat để khớp cảnh chính xác hơn."
+        ))
+
+    # 3. Đánh giá Tiêu điểm thị giác
+    if avg_focus > 6.0:
+        pros.append("Hình ảnh sắc nét, tiêu điểm tập trung tốt vào chủ thể")
+    else:
+        cons.append("Một số khung hình có tiêu điểm thị giác hơi mờ")
+        fixes.append("Tăng độ sắc nét hoặc điều chỉnh ánh sáng làm nổi bật chủ thể chính")
+        issues.append(IssueItem(
+            feature="visual_focus",
+            severity="Medium",
+            description="Độ nét tiêu điểm hình ảnh thấp, giảm tính thẩm mỹ chuyên nghiệp.",
+            recommendation="Sử dụng camera chất lượng cao hoặc dùng các bộ lọc tăng chi tiết hình ảnh."
+        ))
+
+    # 4. Đánh giá độ lộn xộn/rác bố cục
+    if avg_clutter < 4.0:
+        pros.append("Bố cục khung hình sạch sẽ, ít nhiễu thông tin thị giác")
+    else:
+        cons.append("Khung hình chứa nhiều chi tiết thừa gây phân tâm")
+        fixes.append("Dọn dẹp hậu cảnh hoặc thu hẹp góc quay để tập trung vào chủ thể chính")
+        issues.append(IssueItem(
+            feature="clutter_level",
+            severity="Low",
+            description="Mức độ rác bố cục hậu cảnh hơi cao.",
+            recommendation="Làm mờ hậu cảnh (bokeh) để tách biệt chủ thể chính."
+        ))
+
+    # 5. Đánh giá độ động hình ảnh
+    if 3.0 <= avg_dynamics <= 5.0:
+        pros.append("Độ động hình ảnh tối ưu, giữ chân người xem hiệu quả")
+    elif avg_dynamics > 5.0:
+        cons.append("Chuyển cảnh và góc máy thay đổi quá nhanh gây nhức mắt")
+        fixes.append("Giảm bớt tần suất chuyển cảnh dồn dập")
+    else:
+        cons.append("Video tĩnh lặng, thiếu các cú máy chuyển động")
+        fixes.append("Bổ sung các chuyển động zoom nhẹ 5% hoặc hiệu ứng trượt camera")
+
+    # Tạo các nhận xét phân đoạn chi tiết
+    segment_reviews = []
+    for idx, seg in enumerate(segs):
+        seg_focus = seg.features.visual_focus or 5.0
+        seg_speech = seg.features.speech_rate or 150
+        
+        impact = "Mở đầu khá lôi cuốn" if idx == 0 else "Duy trì tương tác ổn định"
+        feedback = "Chất lượng âm thanh hình ảnh đạt mức khá."
+        suggested_fix = "Tiếp tục phát huy phong cách dựng cảnh hiện tại."
+        
+        if seg_focus < 5.0:
+            impact = "Khung hình hơi mất nét"
+            feedback = "Độ nét tiêu điểm thấp, hậu cảnh có thể đang lấn át chủ thể chính."
+            suggested_fix = "Điều chỉnh tiêu cự hoặc thêm viền tương phản cho chữ."
+        elif seg_speech > 190:
+            impact = "Nhịp nói dồn dập gây ngộp"
+            feedback = "Tốc độ nói ở phân đoạn này quá nhanh khiến người xem khó bắt kịp từ khóa."
+            suggested_fix = "Chèn thêm khoảng trống lặng 0.5s giữa các ý chính."
+            
+        segment_reviews.append(SegmentReviewItem(
+            segment_index=idx,
+            impact=impact,
+            feedback=feedback,
+            suggested_fix=suggested_fix
+        ))
+
+    # Tính điểm tổng hợp (Overall Score) dựa trên các đặc trưng thực tế
+    score_components = [
+        10.0 if (140 <= avg_speech_rate <= 180) else (7.0 if avg_speech_rate > 100 else 5.0),
+        min(10.0, avg_sync * 15.0),
+        min(10.0, avg_focus),
+        max(0.0, 10.0 - avg_clutter),
+        10.0 if (3.0 <= avg_dynamics <= 5.0) else 6.0
+    ]
+    overall_score = round(sum(score_components) / len(score_components), 1)
+    
+    if overall_score >= 8.5:
+        grade = "A"
+        headline = "Video sản xuất xuất sắc, chuẩn mực chuyên nghiệp"
+        insight = "Tác phẩm đạt độ hoàn thiện rất cao về cả phần nhìn lẫn phần nghe. Tốc độ truyền tải thông tin lý tưởng và nhịp dựng rất cuốn hút."
+    elif overall_score >= 7.0:
+        grade = "B"
+        headline = "Chất lượng video tốt, cần tinh chỉnh nhịp điệu"
+        insight = "Video có tiềm năng lớn. Chỉ cần tối ưu nhẹ phần ngắt nghỉ của giọng nói và khớp chuyển cảnh vào beat nhạc là có thể tăng gấp đôi hiệu suất giữ chân người xem."
+    else:
+        grade = "C"
+        headline = "Video ở mức trung bình, cần tối ưu nhiều khía cạnh"
+        insight = "Cần cải thiện chất lượng thu âm, bố cục hình ảnh sạch hơn và nhịp nói rõ ràng để giữ chân khán giả."
+
+    return VnptBotReview(
+        headline=headline,
+        overall_score=overall_score,
+        grade=grade,
+        insight=insight,
+        key_issues=issues[:2],
+        segment_highlights=pros[:2] if pros else ["Video có cấu trúc phân đoạn rõ ràng."],
+        suggested_fixes=fixes[:2] if fixes else ["Điều chỉnh nhịp điệu dựng cảnh."],
+        segment_reviews=segment_reviews
+    )
 
 
 def call_vnpt_bot_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
@@ -689,12 +785,8 @@ def call_vnpt_bot_reviewer(payload: AnalysisPayload) -> Optional[VnptBotReview]:
 
     raw = vnpt.review_with_bot(prompt, SYSTEM_PROMPT)
     if not raw or "Xin lỗi" in raw or "hỏi câu khác" in raw or "fallback" in raw:
-        logger.warning(f"VNPT SmartBot returned fallback response or empty: {repr(raw)}. Redirecting to Gemini fallback...")
-        gemini_review = call_gemini_reviewer(payload)
-        if gemini_review:
-            return gemini_review
-        if not raw:
-            return None
+        logger.warning(f"VNPT SmartBot returned fallback response or empty: {repr(raw)}. Redirecting to local heuristic fallback...")
+        return generate_heuristic_review(payload)
 
     raw = raw.strip()
     if raw.startswith("```"):
