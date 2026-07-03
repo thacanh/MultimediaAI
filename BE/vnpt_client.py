@@ -628,7 +628,7 @@ class VnptClient:
             res.raise_for_status()
             
             import json
-            texts = []
+            latest_text = ""
             
             for line in res.iter_lines():
                 if not line:
@@ -646,12 +646,12 @@ class VnptClient:
                             for card in card_data:
                                 t = card.get("text", "")
                                 if t:
-                                    texts.append(t)
+                                    latest_text = t # Ghi đè lấy chuỗi tích lũy mới nhất
                     except Exception as parse_err:
                         logger.warning(f"Failed to parse SSE line: {parse_err}. Line content: {line_str}")
             
-            if texts:
-                return "\n".join(texts)
+            if latest_text:
+                return latest_text
             return None
         except Exception as e:
             logger.error(f"VNPT review_with_bot failed: {e}")
