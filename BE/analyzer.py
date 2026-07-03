@@ -431,15 +431,12 @@ def extract_features_stream(video_path: str, filename: str):
                 }
 
                 results: dict[str, float | None] = {}
-                with ThreadPoolExecutor(max_workers=6) as pool:
-                    future_to_key = {pool.submit(fn): key for key, fn in task_map.items()}
-                    for future in as_completed(future_to_key):
-                        key = future_to_key[future]
-                        try:
-                            results[key] = future.result()
-                        except Exception as exc:
-                            logger.warning(f"Extractor '{key}' failed: {exc}")
-                            results[key] = None
+                for key, fn in task_map.items():
+                    try:
+                        results[key] = fn()
+                    except Exception as exc:
+                        logger.warning(f"Extractor '{key}' failed: {exc}")
+                        results[key] = None
 
                 features = FeatureScores(
                     visual_dynamics =results["visual_dynamics"],
