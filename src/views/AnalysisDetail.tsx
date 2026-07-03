@@ -2,20 +2,16 @@ import React from 'react';
 import {
   ChevronRight, Play, TrendingDown, CheckCircle2,
   Info, Lightbulb, AlertTriangle, AlertCircle,
-  Minus,
+  Minus, BarChart2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AnalysisContext, IssueSeverity, SegmentData } from '../types';
-import {
-  MOCK_SEGMENTS,
-  OVERALL_SCORE,
-  GLOBAL_SUMMARY,
-  NARRATIVE_TREND,
-  TrendStatus,
-} from '../mockData';
+import { AnalysisContext, IssueSeverity, SegmentData, AnalysisResponse } from '../types';
 
 interface AnalysisDetailProps {
   context?: AnalysisContext;
+  analysisResult: AnalysisResponse;
+  videoFile?: File | null;
+  videoSrcUrl?: string | null;  // URL MinIO cho bản ghi từ lịch sử
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -36,12 +32,71 @@ function featureLevel(value: number): 'thấp' | 'trung bình' | 'cao' {
   return 'thấp';
 }
 
-const FEATURE_LABELS: Record<keyof SegmentData['features'], string> = {
-  visual_dynamic: 'Độ động thị giác',
-  motion_level: 'Mức độ chuyển động',
-  text_density: 'Mật độ văn bản',
-  audio_energy: 'Năng lượng âm thanh',
+// Map raw feature key → tên tự nhiên hiển thị
+const FEATURE_LABEL_MAP: Record<string, string> = {
+  // Visual
+  visual_dynamics:  'Độ sinh động hình ảnh',
+  motion_level:     'Mức độ chuyển động',
+  scene_variation:  'Biến đổi cảnh quay',
+  cut_frequency:    'Tần suất cắt cảnh',
+  visual_focus:     'Tiêu điểm hình ảnh',
+  // Text / OCR
+  text_density:     'Mật độ chữ trên màn hình',
+  readability:      'Độ dễ đọc văn bản',
+  clutter_level:    'Mức độ lộn xộn bố cục',
+  // Audio
+  audio_energy:     'Cường độ âm thanh',
+  pitch_variation:  'Biến thiên cao độ giọng',
+  speech_rate:      'Tốc độ lời thoại',
+  sync_alignment:   'Đồng bộ âm thanh & hình ảnh',
 };
+
+function featureLabel(key: string): string {
+  return FEATURE_LABEL_MAP[key] ?? key;
+}
+
+// 12 đặc trưng đầy đủ từ BE, chia 3 nhóm
+const FEATURE_GROUPS = [
+  {
+    label: 'Visual',
+    color: 'text-violet-600',
+    bar: 'bg-violet-400',
+    bg: 'bg-violet-50',
+    border: 'border-violet-100',
+    keys: [
+      { key: 'visual_dynamics',  label: 'Độ động thị giác' },
+      { key: 'motion_level',     label: 'Chuyển động' },
+      { key: 'scene_variation',  label: 'Biến đổi cảnh' },
+      { key: 'cut_frequency',    label: 'Tần suất cắt' },
+      { key: 'visual_focus',     label: 'Tiêu điểm hình ảnh' },
+    ],
+  },
+  {
+    label: 'Text / OCR',
+    color: 'text-amber-600',
+    bar: 'bg-amber-400',
+    bg: 'bg-amber-50',
+    border: 'border-amber-100',
+    keys: [
+      { key: 'text_density',  label: 'Tối giản văn bản', inverted: true },
+      { key: 'readability',   label: 'Độ dễ đọc' },
+      { key: 'clutter_level', label: 'Gọn gàng',         inverted: true },
+    ],
+  },
+  {
+    label: 'Audio',
+    color: 'text-sky-600',
+    bar: 'bg-sky-400',
+    bg: 'bg-sky-50',
+    border: 'border-sky-100',
+    keys: [
+      { key: 'audio_energy',    label: 'Năng lượng âm' },
+      { key: 'pitch_variation', label: 'Biến điệu âm' },
+      { key: 'speech_rate',     label: 'Tốc độ nói' },
+      { key: 'sync_alignment',  label: 'Đồng bộ A/V' },
+    ],
+  },
+];
 
 // ─── sub-components ──────────────────────────────────────────────────────────
 
@@ -175,21 +230,90 @@ function SegmentThumb({
   );
 }
 
+// ─── Real data adapters ───────────────────────────────────────────────────────
+
+function adaptSegments(result: AnalysisResponse): SegmentData[] {
+  const review = result.review;
+  const segReviews = review?.segment_reviews ?? [];
+  return result.payload.segments.map((seg) => {
+    const segReview = segReviews.find((r: any) => r.segment_index === seg.segment_index);
+    return {
+      start: Math.round(seg.start_sec),
+      end: Math.round(seg.end_sec),
+      score: Math.round(seg.derived.overall_quality_score * 10) / 10,
+      features: { ...seg.features },
+      derived: seg.derived,
+      issues: (review?.key_issues ?? []).slice(0, 3).map((ki: any) => ({
+        type: ki.feature,
+        severity: ki.severity,
+        description: ki.description,
+        recommendation: ki.recommendation,
+      })),
+      impact: segReview?.impact || (seg.derived.retention_risk_score > 6 ? 'Nguy cơ rời bỏ cao' : 'Khá ổn định'),
+      feedback: segReview?.feedback || review?.insight || '',
+      suggestedFix: segReview?.suggested_fix || review?.suggested_fixes?.[0] || '',
+    };
+  });
+}
+
 // ─── main component ───────────────────────────────────────────────────────────
 
-export default function AnalysisDetail({ context }: AnalysisDetailProps) {
+export default function AnalysisDetail({ context, analysisResult, videoFile, videoSrcUrl }: AnalysisDetailProps) {
+  const review = (analysisResult as any).review ?? null;
+  const segments: SegmentData[] = adaptSegments(analysisResult);
+  // overall_quality_score từ computation của chúng ta (nhất quán với 4 derived scores)
+  const overallScore = Math.round(
+    (analysisResult.payload.global_derived.overall_quality_score ?? 0) * 10
+  ) / 10;
+  // VNPT Bot score hiển riêng làm tham khảo
+  const botScore = review ? Math.round((review.overall_score ?? 0) * 10) / 10 : null;
+  const summary = {
+    headline: review?.headline ?? 'Chưa có nhận xét AI',
+    insight: review?.insight ?? 'Bản ghi này chưa có phân tích VNPT Bot.',
+    keyIssues: (review?.key_issues ?? []).map(
+      (ki: any) => `${featureLabel(ki.feature)}: ${ki.description}`,
+    ),
+  };
+  const grade = review?.grade ?? '—';
+  const filename = analysisResult.payload.filename;
+  const durationSec = analysisResult.payload.duration_sec;
+  const durationLabel = `${Math.floor(durationSec / 60)}:${String(Math.floor(durationSec % 60)).padStart(2, '0')}`;
+
+  // videoRef để seek khi click segment
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  // URL video: ưu tiên videoSrcUrl (MinIO/history) > file upload local
+  const fileUrl = React.useMemo(
+    () => (videoFile ? URL.createObjectURL(videoFile) : null),
+    [videoFile],
+  );
+  React.useEffect(() => () => { if (fileUrl) URL.revokeObjectURL(fileUrl); }, [fileUrl]);
+  const videoUrl = videoSrcUrl ?? fileUrl;
+
   // Default-select the most problematic segment
   const defaultIndex = React.useMemo(() => {
-    const idx = MOCK_SEGMENTS.reduce(
-      (worst, s, i) => (s.score < MOCK_SEGMENTS[worst].score ? i : worst),
+    const idx = segments.reduce(
+      (worst, s, i) => (s.score < segments[worst].score ? i : worst),
       0,
     );
     return idx;
-  }, []);
+  }, [segments]);
 
   const [activeIndex, setActiveIndex] = React.useState(defaultIndex);
-  const seg = MOCK_SEGMENTS[activeIndex];
+
+  // Seek video tới đầu segment khi click
+  const handleSegmentClick = (idx: number) => {
+    setActiveIndex(idx);
+    const startSec = segments[idx]?.start ?? 0;
+    if (videoRef.current) {
+      videoRef.current.currentTime = startSec;
+      videoRef.current.play().catch(() => {}); // auto-play sau khi seek
+    }
+  };
+
+  const seg = segments[activeIndex];
   const type = segType(seg.score);
+  const activeSegPayload = analysisResult.payload.segments[activeIndex];
 
   return (
     <motion.div
@@ -204,15 +328,14 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
           <nav className="flex items-center gap-2 text-slate-400 text-sm font-bold">
             <button className="hover:text-primary transition-colors">Dự án</button>
             <ChevronRight size={14} />
-            <span className="text-slate-900">Campaign_Promo_v2.mp4</span>
+            <span className="text-slate-900">{filename}</span>
           </nav>
           <div className="space-y-3">
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Báo cáo phân tích video</h1>
-            {/* Context badges */}
+            <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Phân tích video</h1>
             {context && (
               <div className="flex flex-wrap items-center gap-2">
-                <ContextBadge label="Loại" value={context.video_type} />
-                <ContextBadge label="Mục tiêu" value={context.goal} />
+                {context.video_type && <ContextBadge label="Loại" value={context.video_type} />}
+                {context.goal && <ContextBadge label="Mục tiêu" value={context.goal} />}
                 {context.audience && <ContextBadge label="Khán giả" value={context.audience} />}
               </div>
             )}
@@ -222,15 +345,15 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
         <div className="flex items-center gap-6 divide-x divide-slate-100 bg-slate-50 px-6 py-4 rounded-2xl border border-slate-100">
           <div className="text-center px-4">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Điểm TB</p>
-            <p className="text-2xl font-black text-primary tabular-nums">{OVERALL_SCORE}</p>
+            <p className="text-2xl font-black text-primary tabular-nums">{overallScore}</p>
           </div>
           <div className="text-center px-4">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Thời lượng</p>
-            <p className="text-lg font-black text-slate-900 tabular-nums">0:20</p>
+            <p className="text-lg font-black text-slate-900 tabular-nums">{durationLabel}</p>
           </div>
           <div className="text-center px-4">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Phân đoạn</p>
-            <p className="text-lg font-black text-slate-900 tabular-nums">{MOCK_SEGMENTS.length}</p>
+            <p className="text-lg font-black text-slate-900 tabular-nums">{segments.length}</p>
           </div>
         </div>
       </div>
@@ -241,16 +364,16 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
         <div className="lg:col-span-2 bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50" />
           <div className="relative z-10 space-y-6">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tóm tắt tổng quát</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng quan</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <h4 className="text-2xl font-bold tracking-tight text-slate-900">{GLOBAL_SUMMARY.headline}</h4>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">{GLOBAL_SUMMARY.insight}</p>
+                <h4 className="text-2xl font-bold tracking-tight text-slate-900">{summary.headline}</h4>
+                <p className="text-slate-500 text-sm leading-relaxed font-medium">{summary.insight}</p>
               </div>
               <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Các vấn đề chính</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Vấn đề chính</p>
                 <ul className="space-y-3">
-                  {GLOBAL_SUMMARY.keyIssues.map((issue, i) => (
+                  {summary.keyIssues.map((issue, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm font-semibold text-slate-700">
                       <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)] mt-1.5 shrink-0" />
                       {issue}
@@ -264,67 +387,103 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
 
         {/* Right: score ring */}
         <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm flex flex-col justify-center items-center text-center space-y-4">
-          <ScoreRing score={OVERALL_SCORE} />
-          <div className="space-y-1">
-            <p className="font-bold text-slate-900">Điểm chất lượng</p>
-            <p className="text-xs font-bold text-amber-500 uppercase tracking-widest">Hạng B - Cần cải thiện</p>
+          <ScoreRing score={overallScore} />
+          <div className="space-y-1 text-center">
+            <p className="font-bold text-slate-900">Chất lượng tổng thể</p>
+            <p className="text-xs font-bold text-amber-500 uppercase tracking-widest">Hạng {grade}</p>
+            {botScore !== null && (
+              <p className="text-[10px] text-slate-400 font-semibold">AI đánh giá: {botScore}/10</p>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ── NARRATIVE TREND ── */}
-      <section className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm">
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5">Biểu đồ sự gắn kết theo thời gian</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {NARRATIVE_TREND.map((point, i) => {
-            const clr: Record<TrendStatus, string> = {
-              weak: 'border-red-200 bg-red-50/40',
-              neutral: 'border-amber-200 bg-amber-50/40',
-              strong: 'border-emerald-200 bg-emerald-50/40',
-            };
-            const dot: Record<TrendStatus, string> = {
-              weak: 'bg-red-500',
-              neutral: 'bg-amber-400',
-              strong: 'bg-emerald-500',
-            };
-            return (
-              <div key={i} className={`rounded-2xl border p-4 space-y-2 ${clr[point.status as TrendStatus]}`}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${dot[point.status as TrendStatus]}`} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{point.label}</span>
-                </div>
-                <p className="text-xs font-semibold text-slate-700">{point.note}</p>
+      {/* ── VNPT SMART ANALYTICS & SUMMARY ── */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Speech Summary by VNPT SmartVoice */}
+        <div className="lg:col-span-2 bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50" />
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">VNPT SmartVoice</span>
+              <span className="text-[9px] bg-emerald-50 text-emerald-600 font-bold px-2 py-0.5 rounded-full uppercase">Tóm tắt đàm thoại</span>
+            </div>
+            <h4 className="text-xl font-bold text-slate-900">Tóm tắt nội dung lời thoại video</h4>
+            <p className="text-slate-600 text-sm leading-relaxed font-medium bg-slate-50 p-5 rounded-2xl border border-slate-100 whitespace-pre-line">
+              {analysisResult.payload.summary || "Không phát hiện lời thoại hoặc chưa có tóm tắt đàm thoại."}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: SmartVision Stats */}
+        <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50" />
+          <div className="relative z-10 space-y-4 w-full">
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">VNPT SmartVision</span>
+            <h4 className="text-xl font-bold text-slate-900">Thống kê đối tượng</h4>
+            
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Người</span>
+                <p className="text-2xl font-black text-slate-800 font-mono mt-1">{analysisResult.payload.person_count ?? 0}</p>
               </div>
-            );
-          })}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Khuôn mặt</span>
+                <p className="text-2xl font-black text-slate-800 font-mono mt-1">{analysisResult.payload.face_count ?? 0}</p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Xe cộ</span>
+                <p className="text-2xl font-black text-slate-800 font-mono mt-1">{analysisResult.payload.vehicle_count ?? 0}</p>
+              </div>
+            </div>
+            
+            {analysisResult.payload.license_plates && analysisResult.payload.license_plates.length > 0 && (
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-3">
+                <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1.5">Biển số xe phát hiện</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {analysisResult.payload.license_plates.map((plate, idx) => (
+                    <span key={idx} className="text-[10px] font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded border border-slate-300 font-mono">
+                      {plate}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
+
+
 
       {/* ── VIDEO + TIMELINE ── */}
-      <section className="bg-white rounded-[40px] p-2 border border-slate-100 shadow-xl overflow-hidden group">
-        <div className="relative aspect-video rounded-[36px] bg-slate-900 overflow-hidden cursor-pointer">
-          <img
-            src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1600"
-            alt="Video Preview"
-            className="w-full h-full object-cover opacity-80"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 group-hover:bg-primary transition-all duration-500 group-hover:scale-110 shadow-2xl">
-              <Play size={32} fill="currentColor" className="ml-1" />
+      <section className="bg-white rounded-[40px] p-2 border border-slate-100 shadow-xl overflow-hidden">
+        <div className="relative aspect-video rounded-[36px] bg-slate-900 overflow-hidden">
+          {videoUrl ? (
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              controls
+              className="w-full h-full object-contain"
+              preload="metadata"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-slate-500">
+              <Play size={40} className="opacity-30" />
+              <p className="text-sm font-medium opacity-50">Không có video preview</p>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Segment strip */}
         <div className="p-4 bg-white overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 min-w-max">
-            {MOCK_SEGMENTS.map((s, idx) => (
+            {segments.map((s, idx) => (
               <SegmentThumb
                 key={idx}
                 seg={s}
                 index={idx}
                 active={idx === activeIndex}
-                onClick={() => setActiveIndex(idx)}
+                onClick={() => handleSegmentClick(idx)}
               />
             ))}
           </div>
@@ -346,7 +505,7 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
             >
               {/* A. Score */}
               <div className="space-y-2">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tại sao điểm này?</h3>
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Điểm phân đoạn</h3>
                 <div className="flex items-baseline gap-4">
                   <span className={`text-6xl font-black tracking-tighter ${
                     type === 'good' ? 'text-emerald-600' : type === 'warn' ? 'text-amber-600' : 'text-red-600'
@@ -361,37 +520,51 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
                 </div>
               </div>
 
-              {/* B. Feature breakdown */}
-              <div className="space-y-4">
+              {/* B. Feature breakdown — 12 đặc trưng, chia 3 nhóm */}
+              <div className="space-y-5">
                 <h4 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-slate-50 pb-2">
-                  Phân tích thành phần
+                  Phân tích 12 đặc trưng
                 </h4>
-                <div className="space-y-4">
-                  {(Object.keys(FEATURE_LABELS) as Array<keyof typeof FEATURE_LABELS>).map((key) => {
-                    const val = seg.features[key];
-                    const level = featureLevel(val);
-                    return (
-                      <div key={key} className="flex items-center gap-3">
-                        <div className="w-24 text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate shrink-0">
-                          {FEATURE_LABELS[key]}
+                {FEATURE_GROUPS.map((group) => (
+                  <div key={group.label} className={`rounded-2xl border p-4 space-y-3 ${group.bg} ${group.border}`}>
+                    <p className={`text-[9px] font-black uppercase tracking-widest ${group.color}`}>{group.label}</p>
+                    {group.keys.map(({ key, label, inverted }) => {
+                      const raw = (seg.features as any)[key] as number | null | undefined;
+                      if (raw === null || raw === undefined) {
+                        // N/A
+                        return (
+                          <div key={key} className="flex items-center gap-2">
+                            <div className="w-20 text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate shrink-0">{label}</div>
+                            <div className="flex-1 h-1.5 bg-white/70 rounded-full" />
+                            <div className="text-[10px] font-black text-slate-400 tabular-nums w-5 text-right shrink-0">—</div>
+                            <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded text-slate-400 bg-slate-100">N/A</span>
+                          </div>
+                        );
+                      }
+                      // inverted: điểm thấp = tốt → hiển thị 10 - raw
+                      const displayVal = inverted ? Math.round((10 - raw) * 10) / 10 : raw;
+                      const level = featureLevel(displayVal);
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <div className="w-20 text-[9px] font-bold text-slate-500 uppercase tracking-tight truncate shrink-0">
+                            {label}
+                          </div>
+                          <div className="flex-1 h-1.5 bg-white/70 rounded-full overflow-hidden">
+                            <motion.div
+                              key={`${activeIndex}-${key}`}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${displayVal * 10}%` }}
+                              transition={{ duration: 0.5, ease: 'easeOut', delay: 0.05 }}
+                              className={`h-full rounded-full ${group.bar}`}
+                            />
+                          </div>
+                          <div className="text-[10px] font-black text-slate-800 tabular-nums w-5 text-right shrink-0">{Number(displayVal).toFixed(1)}</div>
+                          <LevelTag level={level} />
                         </div>
-                        <div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden">
-                          <motion.div
-                            key={`${activeIndex}-${key}`}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${val * 10}%` }}
-                            transition={{ duration: 0.5, ease: 'easeOut' }}
-                            className={`h-full rounded-full ${
-                              level === 'cao' ? 'bg-emerald-400' : level === 'trung bình' ? 'bg-amber-400' : 'bg-red-400'
-                            }`}
-                          />
-                        </div>
-                        <div className="text-[11px] font-black text-slate-900 tabular-nums w-4 text-right">{val}</div>
-                        <LevelTag level={level} />
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
 
               {/* Export */}
@@ -421,7 +594,7 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
                   <div className="bg-red-50 p-2 rounded-xl">
                     <TrendingDown size={18} className="text-red-500" />
                   </div>
-                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-400">Các lỗi đã phát hiện</h4>
+                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-400">Vấn đề</h4>
                 </div>
 
                 {seg.issues.length > 0 ? (
@@ -433,7 +606,7 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
                       >
                         <SeverityIcon severity={issue.severity} />
                         <span className="text-sm font-semibold text-slate-700 leading-relaxed flex-1">
-                          {issue.type}
+                          {featureLabel(issue.type)}
                         </span>
                         <SeverityBadge severity={issue.severity} />
                       </div>
@@ -442,7 +615,7 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
                 ) : (
                   <div className="flex gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                     <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-                    <span className="text-sm font-bold text-emerald-700">Không phát hiện vấn đề nghiêm trọng trong phân đoạn này.</span>
+                    <span className="text-sm font-bold text-emerald-700">Phân đoạn ổn, không có vấn đề.</span>
                   </div>
                 )}
               </div>
@@ -453,16 +626,13 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
                   <div className="bg-primary/5 p-2 rounded-xl">
                     <Info size={18} className="text-primary" />
                   </div>
-                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-400">Tác động đến người xem</h4>
+                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-400">Tác động</h4>
                 </div>
                 <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
                   <p className="text-sm text-slate-700 font-medium leading-relaxed">{seg.impact}</p>
-                  <div className="mt-4 pt-4 border-t border-slate-200/60">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lý giải từ AI</p>
-                    <p className="text-sm font-semibold text-slate-600 italic leading-relaxed">"{seg.feedback}"</p>
-                  </div>
                 </div>
               </div>
+
 
               {/* E. Suggested Fix */}
               <div className="pt-4 border-t border-slate-50">
@@ -475,7 +645,7 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
                       <Lightbulb size={20} className="text-primary" />
                     </div>
                     <div className="space-y-2">
-                      <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Đề xuất chỉnh sửa từ AI</h4>
+                      <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Gợi ý AI</h4>
                       <p className="text-lg font-bold text-slate-900 leading-relaxed">{seg.suggestedFix}</p>
                     </div>
                   </div>
@@ -484,19 +654,20 @@ export default function AnalysisDetail({ context }: AnalysisDetailProps) {
             </motion.div>
           </AnimatePresence>
 
-          {/* Mini stats */}
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Độ mượt cắt dựng</p>
-              <p className="text-2xl font-black text-slate-900 tracking-tighter">88%</p>
-              <p className="text-xs text-slate-400 font-medium mt-1">Trên mức trung bình ngành</p>
+          {/* Segment highlights từ VNPT SmartBot */}
+          {(review?.segment_highlights?.length ?? 0) > 0 && (
+            <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm space-y-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Điểm nổi bật theo phân đoạn (AI)</p>
+              <ul className="space-y-2">
+                {review.segment_highlights.map((h: string, i: number) => (
+                  <li key={i} className="flex items-start gap-3 text-sm text-slate-700 font-medium">
+                    <span className="text-primary font-black shrink-0">{i + 1}.</span>
+                    {h}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">So với các video tương tự</p>
-              <p className="text-2xl font-black text-slate-900 tracking-tighter">+12%</p>
-              <p className="text-xs text-slate-400 font-medium mt-1">Chất lượng hình ảnh tốt hơn</p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </motion.div>

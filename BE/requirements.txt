@@ -1,0 +1,32 @@
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+pydantic>=2.7.0
+pydantic[email]>=2.7.0
+
+# Database — MySQL (docker) + SQLite fallback
+sqlalchemy>=2.0.0
+pymysql>=1.1.0           # MySQL driver (pure Python, no C deps)
+cryptography>=42.0.0     # pymysql auth plugin
+aiosqlite>=0.19.0        # SQLite async fallback
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt==3.2.2              # pin: passlib incompatible with bcrypt>=4.x
+
+# Video Storage — MinIO S3
+minio>=7.2.0
+
+# Video / Vision
+opencv-python-headless>=4.9.0
+numpy>=1.26.0,<2.0
+requests>=2.31.0
+
+# Audio
+librosa>=0.10.2
+soundfile>=0.12.1
+
+# Utilities
+python-dotenv>=1.0.1
+aiofiles>=23.2.1

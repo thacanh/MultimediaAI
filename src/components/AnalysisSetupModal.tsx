@@ -1,39 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { X, Video, Target, Users, Upload, ArrowRight, Check } from 'lucide-react';
+import { X, Upload, ArrowRight, Check, Film } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AnalysisContext } from '../types';
 
 interface AnalysisSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onStart: (context: AnalysisContext) => void;
+  onStart: (context: AnalysisContext, file: File) => void;
 }
 
-const videoTypes = [
-  'Video mạng xã hội (TikTok / Reels)',
-  'Giáo dục / Bài giảng',
-  'Thuyết trình (dạng slide)',
-  'Marketing / Quảng cáo',
-  'Talking head (nói trực diện)'
-];
-
-const goals = [
-  'Giữ chân người xem',
-  'Sự rõ ràng (giải thích dễ hiểu)',
-  'Chuyển đổi (thuyết phục / bán hàng)',
-  'Xây dựng thương hiệu cá nhân'
-];
-
-const audiences = [
-  'Người mới bắt đầu',
-  'Chuyên gia'
-];
 
 export default function AnalysisSetupModal({ isOpen, onClose, onStart }: AnalysisSetupModalProps) {
   const [context, setContext] = useState<AnalysisContext>({
-    video_type: '',
-    goal: '',
-    audience: null
+    video_type: 'TikTok / Reels / Shorts'
   });
   const [isUploaded, setIsUploaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +25,7 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
     }
   };
 
-  const isReady = context.video_type !== '' && context.goal !== '' && isUploaded;
+  const isReady = isUploaded;
 
   if (!isOpen) return null;
 
@@ -80,59 +59,38 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
             </div>
 
             <div className="p-8 space-y-7 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              {/* Video Type */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <Video size={16} className="text-primary" />
-                  Loại Video <span className="text-red-500">*</span>
-                </label>
-                <select
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
-                  value={context.video_type}
-                  onChange={(e) => setContext({ ...context, video_type: e.target.value })}
-                >
-                  <option value="" disabled>Chọn loại video...</option>
-                  {videoTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
 
-              {/* Goal */}
+              {/* Định dạng video */}
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <Target size={16} className="text-primary" />
-                  Mục tiêu chính <span className="text-red-500">*</span>
+                  <Film size={16} className="text-primary" />
+                  Định dạng video
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {goals.map(g => (
-                    <button
-                      key={g}
-                      onClick={() => setContext({ ...context, goal: g })}
-                      className={`text-left p-3 rounded-xl border text-xs font-bold transition-all ${context.goal === g
-                        ? 'bg-primary/5 border-primary text-primary shadow-sm'
-                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
-                        }`}
-                    >
-                      {g}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 gap-2.5">
+                  <button
+                    type="button"
+                    className="flex items-center justify-between p-3.5 rounded-2xl border bg-primary/5 border-primary text-primary text-xs font-bold transition-all shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      TikTok / Reels / Shorts (Video ngắn)
+                    </div>
+                    <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-lg uppercase tracking-wider font-extrabold">Mặc định</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled
+                    className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50 text-slate-400 text-xs font-bold cursor-not-allowed opacity-60"
+                  >
+                    <span>Youtube / Long-form video (Video dài)</span>
+                    <span className="text-[9px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-bold">Đang phát triển</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Audience */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <Users size={16} className="text-primary" />
-                  Đối tượng khán giả
-                </label>
-                <select
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
-                  value={context.audience || ''}
-                  onChange={(e) => setContext({ ...context, audience: e.target.value || null })}
-                >
-                  <option value="">Đại chúng</option>
-                  {audiences.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
+
+
 
               {/* Upload Simulation */}
               <div className="space-y-3">
@@ -180,7 +138,7 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
             <div className="p-8 pt-4 flex gap-4 bg-slate-50/50 border-t border-slate-100">
               <button
                 disabled={!isReady}
-                onClick={() => onStart(context)}
+                onClick={() => selectedFile && onStart(context, selectedFile)}
                 className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl font-bold transition-all shadow-lg ${isReady
                   ? 'bg-primary text-white hover:bg-primary-hover active:scale-[0.98] shadow-primary/20'
                   : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'

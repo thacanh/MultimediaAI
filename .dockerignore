@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.env
+.env.*
+*.log
+BE/.venv
+BE/__pycache__
+BE/videos

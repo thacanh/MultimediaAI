@@ -5,7 +5,7 @@ interface TopBarProps {
 }
 
 export default function TopBar({ onUpgrade }: TopBarProps) {
-  return (
+  return  (
     <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm flex justify-between items-center px-6 h-16">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">

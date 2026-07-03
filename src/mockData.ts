@@ -10,10 +10,18 @@ export const MOCK_SEGMENTS: SegmentData[] = [
     end: 4,
     score: 3.4,
     features: {
-      visual_dynamic: 2,
+      visual_dynamics: 2, visual_dynamic: 2,
       motion_level: 2,
+      scene_variation: 3,
+      cut_frequency: 2,
       text_density: 4,
+      readability: 5,
+      visual_focus: 3,
+      clutter_level: 4,
       audio_energy: 3,
+      pitch_variation: 3,
+      speech_rate: 4,
+      sync_alignment: 5,
     },
     issues: [
       { type: 'Thiếu điểm nhấn thị giác (Visual Hook) ở phần mở đầu', severity: 'High' },
@@ -32,16 +40,24 @@ export const MOCK_SEGMENTS: SegmentData[] = [
     end: 8,
     score: 7.8,
     features: {
-      visual_dynamic: 8,
+      visual_dynamics: 8, visual_dynamic: 8,
       motion_level: 7,
+      scene_variation: 7,
+      cut_frequency: 6,
       text_density: 3,
+      readability: 8,
+      visual_focus: 7,
+      clutter_level: 2,
       audio_energy: 8,
+      pitch_variation: 6,
+      speech_rate: 6,
+      sync_alignment: 7,
     },
     issues: [{ type: 'Độ trễ đồng bộ âm thanh - hình ảnh (A/V Sync) ở mức thấp', severity: 'Low' }],
     impact:
       'Mức độ đa dạng về thị giác ở phân đoạn này hoạt động hiệu quả, giúp duy trì sự chú ý của tệp khán giả đã vượt qua phần Hook.',
     feedback:
-      'Nhịp độ (Pacing) được xử lý rất tốt. Sự kết hợp giữa chuyển động hình ảnh, mật độ văn bản tối ưu và cường độ âm thanh tạo ra trải nghiệm liền mạch. Đây là điểm phục hồi ấn tượng sau phần mở đầu.',
+      'Nhịp độ (Pacing) được xử lý rất tốt. Sự kết hợp giữa chuyển động hình ảnh, mật độ văn bản tối ưu và cường độ âm thanh tạo ra trải nghiệm liền mạch.',
     suggestedFix:
       'Có thể vi chỉnh (fine-tune) điểm cắt (cut point) tại mốc 5.2s sớm hơn 1 frame để đạt độ đồng bộ hoàn hảo hơn.',
   },
@@ -50,16 +66,24 @@ export const MOCK_SEGMENTS: SegmentData[] = [
     end: 12,
     score: 8.1,
     features: {
-      visual_dynamic: 8,
+      visual_dynamics: 8, visual_dynamic: 8,
       motion_level: 7,
+      scene_variation: 6,
+      cut_frequency: 5,
       text_density: 5,
+      readability: 7,
+      visual_focus: 8,
+      clutter_level: 3,
       audio_energy: 8,
+      pitch_variation: 7,
+      speech_rate: 5,
+      sync_alignment: 8,
     },
     issues: [{ type: 'Cảnh báo nhẹ: Nguy cơ quá tải lượng thông tin (Cognitive Overload)', severity: 'Low' }],
     impact:
       'Nhịp độ được duy trì ổn định giúp củng cố mức độ tập trung, chuẩn bị cho người xem tiếp nhận thông điệp cốt lõi (Core Message).',
     feedback:
-      'Sự đồng bộ A/V tiếp tục thể hiện hiệu suất cao. Mặc dù mật độ văn bản có sự gia tăng, tổng thể vẫn nằm trong giới hạn tối ưu. Phân đoạn này củng cố tốt đà giữ chân khán giả.',
+      'Sự đồng bộ A/V tiếp tục thể hiện hiệu suất cao. Mặc dù mật độ văn bản có sự gia tăng, tổng thể vẫn nằm trong giới hạn tối ưu.',
     suggestedFix:
       'Cân nhắc tinh giản một dòng văn bản phụ trên màn hình để tạo thêm "không gian thở" (Negative Space) cho thị giác.',
   },
@@ -68,47 +92,62 @@ export const MOCK_SEGMENTS: SegmentData[] = [
     end: 16,
     score: 3.2,
     features: {
-      visual_dynamic: 2,
+      visual_dynamics: 2, visual_dynamic: 2,
       motion_level: 2,
+      scene_variation: 2,
+      cut_frequency: 1,
       text_density: 9,
+      readability: 4,
+      visual_focus: 2,
+      clutter_level: 8,
       audio_energy: 3,
+      pitch_variation: 2,
+      speech_rate: 3,
+      sync_alignment: 3,
     },
     issues: [
       { type: 'Cảnh báo đỏ: Mật độ văn bản vượt ngưỡng tối ưu', severity: 'High' },
       { type: 'Hình ảnh thiếu sự thay đổi, dẫn đến cảm giác tĩnh lặng', severity: 'High' },
       { type: 'Cường độ âm thanh sụt giảm đáng kể', severity: 'Medium' },
-      { type: 'Giọng đọc (Voiceover) đang thiếu sự nhấn nhá và cảm xúc', severity: 'Medium' },
     ],
     impact:
       'Sự kết hợp giữa quá tải thông tin dạng văn bản và hình ảnh tĩnh tạo ra điểm sụt giảm tương tác (Engagement Drop) nghiêm trọng nhất trong toàn bộ video.',
     feedback:
-      'Mật độ văn bản đạt đỉnh điểm trong bối cảnh hình ảnh không có sự thay đổi. Đồng thời, cường độ âm thanh rơi xuống mức thấp nhất. Đây là rủi ro lớn đối với tỷ lệ xem hết (Completion Rate).',
+      'Mật độ văn bản đạt đỉnh điểm trong bối cảnh hình ảnh không có sự thay đổi. Đây là rủi ro lớn đối với tỷ lệ xem hết (Completion Rate).',
     suggestedFix:
-      'Phân tách khối văn bản hiện tại thành 3 lần xuất hiện (animations) độc lập. Thay thế các gạch đầu dòng bằng các biểu tượng trực quan (Visual Icons) hoặc chữ động.',
+      'Phân tách khối văn bản hiện tại thành 3 lần xuất hiện (animations) độc lập. Thay thế các gạch đầu dòng bằng các biểu tượng trực quan (Visual Icons).',
   },
   {
     start: 16,
     end: 20,
     score: 5.9,
     features: {
-      visual_dynamic: 5,
+      visual_dynamics: 5, visual_dynamic: 5,
       motion_level: 6,
+      scene_variation: 5,
+      cut_frequency: 4,
       text_density: 7,
+      readability: 6,
+      visual_focus: 5,
+      clutter_level: 5,
       audio_energy: 5,
+      pitch_variation: 4,
+      speech_rate: 5,
+      sync_alignment: 6,
     },
     issues: [
       { type: 'Chuyển cảnh kết thúc (Outro) khá đột ngột', severity: 'Medium' },
-      { type: 'Năng lượng Voiceover chưa phục hồi hoàn toàn', severity: 'Medium' },
       { type: 'Call-to-Action (CTA) thiếu sự nổi bật về mặt thị giác', severity: 'Low' },
     ],
     impact:
-      'Phần kết thúc thiếu lực làm giảm khả năng ghi nhớ thông điệp (Brand Recall) và tác động tiêu cực đến Tỷ lệ chuyển đổi (Conversion Rate) của CTA, dự kiến giảm khoảng 30%.',
+      'Phần kết thúc thiếu lực làm giảm khả năng ghi nhớ thông điệp (Brand Recall) và tác động tiêu cực đến Tỷ lệ chuyển đổi (Conversion Rate).',
     feedback:
-      'Cường độ âm thanh có dấu hiệu phục hồi nhưng chưa đủ để tạo ra một cái kết bùng nổ. Lời kêu gọi hành động (CTA) bị chìm do thiếu điểm nhấn thị giác và âm lượng chưa tương xứng.',
+      'Cường độ âm thanh có dấu hiệu phục hồi nhưng chưa đủ để tạo ra một cái kết bùng nổ. Lời kêu gọi hành động (CTA) bị chìm.',
     suggestedFix:
-      'Áp dụng hiệu ứng Zoom-punch 0.5s vào phần CTA. Nâng mức nhạc nền (BGM) thêm +4dB và điều chỉnh EQ giọng nói để đồng bộ với mức năng lượng của phân đoạn 4-8s.',
+      'Áp dụng hiệu ứng Zoom-punch 0.5s vào phần CTA. Nâng mức nhạc nền (BGM) thêm +4dB và điều chỉnh EQ giọng nói.',
   },
 ];
+
 
 export const OVERALL_SCORE = 6.2;
 

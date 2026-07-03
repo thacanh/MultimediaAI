@@ -1,0 +1,74 @@
+{
+  "visual_dynamics": {
+    "opt_min": 2.77,
+    "opt_max": 5.31,
+    "peak": 3.98,
+    "scale_min": 0.5,
+    "scale_max": 8.0,
+    "description": "Đo lường cường độ và sự phong phú của thay đổi hình ảnh theo thời gian"
+  },
+  "motion_level": {
+    "opt_min": 2.22,
+    "opt_max": 4.40,
+    "peak": 3.31,
+    "scale_min": 0.5,
+    "scale_max": 7.0,
+    "description": "Đo lường lượng chuyển động trong các frame hình"
+  },
+  "scene_variation": {
+    "diff_ceil": 0.30,
+    "power": 0.5,
+    "description": "Đo lường sự biến đổi nội dung hình ảnh trên toàn phân đoạn"
+  },
+  "cut_frequency": {
+    "hist_cut_threshold": 0.85,
+    "opt_max": 0.345,
+    "scale_max": 2.0,
+    "description": "Đo lường tần suất cắt cảnh cứng mỗi giây"
+  },
+  "text_density": {
+    "coverage_ceil": 0.30,
+    "description": "Đo lường tỷ lệ bao phủ của văn bản trên màn hình"
+  },
+  "readability": {
+    "size_ceil": 0.04,
+    "contrast_weight": 0.5,
+    "conf_weight": 0.3,
+    "size_weight": 0.2,
+    "description": "Đo lường độ dễ đọc của phụ đề và chữ"
+  },
+  "visual_focus": {
+    "min_concentration": 0.30,
+    "range_concentration": 0.40,
+    "description": "Đo lường độ rõ nét của tiêu điểm thị giác"
+  },
+  "clutter_level": {
+    "density_ceil": 0.20,
+    "description": "Đo lường độ lộn xộn và nhiễu bố cục hình ảnh"
+  },
+  "audio_energy": {
+    "rms_ceil": 0.15,
+    "description": "Đo lường cường độ năng lượng/độ lớn trung bình của âm thanh"
+  },
+  "pitch_variation": {
+    "speech_std_ceil": 80.0,
+    "fallback_coef": 12.0,
+    "description": "Đo lường sự biến thiên cao độ giọng nói hoặc động lực học âm nhạc"
+  },
+  "speech_rate": {
+    "opt_min": 159.0,
+    "opt_max": 187.0,
+    "peak": 173.0,
+    "scale_min": 60.0,
+    "scale_max": 280.0,
+    "description": "Đo lường tốc độ nói (WPM)"
+  },
+  "sync_alignment": {
+    "opt_min": 0.343,
+    "opt_max": 0.587,
+    "peak": 0.465,
+    "scale_min": -0.2,
+    "scale_max": 0.9,
+    "description": "Đo lường độ đồng bộ giữa nhịp cắt hình ảnh và nhịp onset âm thanh"
+  }
+}

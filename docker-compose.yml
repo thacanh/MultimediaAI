@@ -1,0 +1,110 @@
+# docker-compose.yml — VNPT Multimedia AI (Full Stack)
+# Chạy: docker compose up --build -d
+# Web: http://localhost:8080  hoặc  https://unpredaceously-suburbicarian-nelle.ngrok-free.app
+
+services:
+  # ─── MySQL ───────────────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.4
+    container_name: vnpthack-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-vnpthack}
+      MYSQL_USER: ${MYSQL_USER:-vnpthack_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-vnptpass123}
+    volumes:
+      - vnpthack_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── MinIO (S3-compatible video storage) ─────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: vnpthack-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - vnpthack_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─── FastAPI Backend ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./BE
+      dockerfile: Dockerfile
+    container_name: vnpthack-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    env_file:
+      - ./BE/.env
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-vnpthack_user}:${MYSQL_PASSWORD:-vnptpass123}@db:3306/${MYSQL_DATABASE:-vnpthack}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_HOST: unpredaceously-suburbicarian-nelle.ngrok-free.dev   # URL public qua ngrok
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-vnpthack-videos}
+      MINIO_SECURE: "false"
+    volumes:
+      - ./BE:/app
+      - vnpthack_videos_data:/app/videos
+      - ${APPDATA}/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ─── React Frontend (Nginx) ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.fe
+      args:
+        GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    container_name: vnpthack-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ─── ngrok tunnel ─────────────────────────────────────────────────────────────
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: vnpthack-ngrok
+    restart: unless-stopped
+    command: >
+      http frontend:80
+      --domain=unpredaceously-suburbicarian-nelle.ngrok-free.dev
+      --log=stdout
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      - frontend
+    ports:
+      - "4041:4040"   # ngrok web UI (inspect traffic)
+
+volumes:
+  vnpthack_mysql_data:
+  vnpthack_minio_data:
+  vnpthack_videos_data:

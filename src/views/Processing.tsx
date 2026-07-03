@@ -1,86 +1,173 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Edit2, Bolt, Settings, Video, Mic, Timer, Sparkles } from 'lucide-react';
-import { AnalysisContext } from '../types';
+import { Bolt, Video, Mic, Sparkles, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AnalysisContext, AnalysisResponse } from '../types';
+import { extractFeaturesStream, getReview, patchReview, StreamEvent } from '../api';
 
 interface ProcessingProps {
-  onCancel: () => void;
-  onComplete: () => void;
+  file: File;
   context: AnalysisContext | null;
+  onCancel: () => void;
+  onComplete: (result: AnalysisResponse) => void;
 }
 
-// ---------- Stage definitions ----------
+// ─── Stage model ──────────────────────────────────────────────────────────────
+
+type StageStatus = 'pending' | 'active' | 'done' | 'error';
+
 interface Stage {
-  id: number;
+  id: string;
   label: string;
-  duration: number; // ms
+  detail: string;
   icon: React.ReactNode;
 }
 
-const STAGES: Stage[] = [
-  { id: 0, label: 'Đang chuẩn bị video...', duration: 2000, icon: <Settings size={24} /> },
-  { id: 1, label: 'Đang phân tích hình ảnh...', duration: 1333, icon: <Video size={24} /> },
-  { id: 2, label: 'Đang đánh giá âm thanh...', duration: 1333, icon: <Mic size={24} /> },
-  { id: 3, label: 'Đang phát hiện vấn đề về nhịp độ...', duration: 1333, icon: <Timer size={24} /> },
-  { id: 4, label: 'Đang tạo báo cáo phân tích...', duration: 2000, icon: <Sparkles size={24} /> },
+const FIXED_STAGES: Stage[] = [
+  { id: 'video', label: 'Đọc video', detail: 'Trích xuất audio & metadata', icon: <Video size={16} /> },
+  { id: 'review', label: 'AI đánh giá', detail: 'AI phân tích 12 đặc trưng', icon: <Sparkles size={16} /> },
 ];
 
-const TOTAL_DURATION = STAGES.reduce((s, st) => s + st.duration, 0); // 8000 ms
+// ─── Segment stage card ───────────────────────────────────────────────────────
 
-export default function Processing({ onCancel, onComplete, context }: ProcessingProps) {
-  const [elapsed, setElapsed] = useState(0);
-  const [stageIndex, setStageIndex] = useState(0);
-  const [done, setDone] = useState(false);
-  const startRef = useRef(Date.now());
-  const frameRef = useRef<number | null>(null);
+function SegmentRow({
+  index, total, start, end, status,
+}: {
+  index: number; total: number; start: number; end: number; status: StageStatus;
+}) {
+  const pct = total > 0 ? Math.round(((index + (status === 'done' ? 1 : 0)) / total) * 100) : 0;
+  return (
+    <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-300 ${status === 'done' ? 'bg-emerald-50/60 border-emerald-100' :
+        status === 'active' ? 'bg-indigo-50/50 border-primary/20' :
+          'bg-slate-50 border-slate-100 opacity-40'
+      }`}>
+      <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[10px] font-black transition-all ${status === 'done' ? 'bg-emerald-500 text-white' :
+          status === 'active' ? 'bg-primary text-white' :
+            'bg-slate-200 text-slate-400'
+        }`}>
+        {status === 'done' ? '✓' : index + 1}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-bold truncate ${status === 'done' ? 'text-emerald-700' : status === 'active' ? 'text-primary' : 'text-slate-400'
+          }`}>
+          Segment {index + 1}/{total} · {start}s – {end}s
+        </p>
+      </div>
+      {status === 'active' && (
+        <Loader2 size={12} className="text-primary animate-spin shrink-0" />
+      )}
+      {status === 'done' && (
+        <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+      )}
+    </div>
+  );
+}
 
-  // Animate progress from 0 → 100 over TOTAL_DURATION
-  useEffect(() => {
-    const tick = () => {
-      const now = Date.now();
-      const ms = now - startRef.current;
-      if (ms >= TOTAL_DURATION) {
-        setElapsed(TOTAL_DURATION);
-        setDone(true);
-        return;
-      }
-      setElapsed(ms);
+// ─── Main component ───────────────────────────────────────────────────────────
 
-      // Determine which stage we're in
-      let acc = 0;
-      for (let i = 0; i < STAGES.length; i++) {
-        acc += STAGES[i].duration;
-        if (ms < acc) {
-          setStageIndex(i);
-          break;
-        }
-      }
-      frameRef.current = requestAnimationFrame(tick);
+export default function Processing({ file, context, onCancel, onComplete }: ProcessingProps) {
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  // Segment tracking
+  const [totalSegs, setTotalSegs] = useState<number>(0);
+  const [segStatuses, setSegStatuses] = useState<{ start: number; end: number; status: StageStatus }[]>([]);
+
+  // Phase: 'extract' | 'review' | 'done'
+  const [phase, setPhase] = useState<'extract' | 'review' | 'done'>('extract');
+
+  const hasStarted = useRef(false);
+
+  // ── Smooth progress helper ────────────────────────────────────────────────
+  const targetRef = useRef(0);
+  const animFrameRef = useRef<number>(0);
+
+  const setTargetProgress = (target: number) => {
+    targetRef.current = target;
+    const animate = () => {
+      setProgress(prev => {
+        const diff = targetRef.current - prev;
+        if (Math.abs(diff) < 0.2) return targetRef.current;
+        animFrameRef.current = requestAnimationFrame(animate);
+        return prev + diff * 0.12;
+      });
     };
-
-    frameRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, []);
-
-  // Auto-transition to result when done
-  useEffect(() => {
-    if (done) {
-      const t = setTimeout(onComplete, 600);
-      return () => clearTimeout(t);
-    }
-  }, [done, onComplete]);
-
-  const progress = Math.min((elapsed / TOTAL_DURATION) * 100, 100);
-  const currentStage = STAGES[stageIndex];
-
-  // Which stages are fully completed (not just current)
-  const isStageCompleted = (idx: number) => {
-    let acc = 0;
-    for (let i = 0; i <= idx; i++) acc += STAGES[i].duration;
-    return elapsed >= acc;
+    cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = requestAnimationFrame(animate);
   };
+
+  // ── Pipeline ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (hasStarted.current) return;
+    hasStarted.current = true;
+
+    const run = async () => {
+      try {
+        // Phase 1: streaming extraction
+        let total = 0;
+        const { payload, recordId } = await extractFeaturesStream(file, (event: StreamEvent) => {
+          if (event.type === 'video_info') {
+            total = event.total_segments ?? 0;
+            setTotalSegs(total);
+            setSegStatuses(Array(total).fill(null).map(() => ({ start: 0, end: 0, status: 'pending' as StageStatus })));
+            setTargetProgress(5);
+          }
+
+          if (event.type === 'segment_start' && event.index != null) {
+            setSegStatuses(prev => prev.map((s, i) =>
+              i === event.index ? { start: event.start ?? 0, end: event.end ?? 0, status: 'active' } : s
+            ));
+            const pct = 5 + ((event.index) / (total || 1)) * 75;
+            setTargetProgress(pct);
+          }
+
+          if (event.type === 'segment_done' && event.index != null) {
+            setSegStatuses(prev => prev.map((s, i) =>
+              i === event.index ? { ...s, status: 'done' } : s
+            ));
+            const pct = 5 + ((event.index + 1) / (total || 1)) * 75;
+            setTargetProgress(pct);
+          }
+        });
+
+        // Phase 2: VNPT SmartBot review
+        setPhase('review');
+        setTargetProgress(83);
+
+        const review = await getReview(payload);
+
+        // Lưu review vào DB record đã tạo ở phase 1
+        if (recordId != null) {
+          patchReview(recordId, review).catch((e) =>
+            console.warn('Patch review non-fatal:', e)
+          );
+        }
+
+        setTargetProgress(100);
+        setPhase('done');
+
+        await new Promise(r => setTimeout(r, 600));
+        cancelAnimationFrame(animFrameRef.current);
+        onComplete({ payload, review });
+
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Lỗi không xác định';
+        setError(msg);
+      }
+    };
+
+    run();
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+  const roundedProgress = Math.round(progress);
+  const isDone = phase === 'done';
+
+  const phaseLabel =
+    error ? '⚠ Lỗi' :
+      isDone ? '✓ Hoàn tất' :
+        phase === 'review' ? 'AI đang đánh giá' :
+          totalSegs > 0 ? `Đang trích xuất — ${roundedProgress}%` : 'Đang chuẩn bị...';
 
   return (
     <motion.div
@@ -88,187 +175,162 @@ export default function Processing({ onCancel, onComplete, context }: Processing
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.35 }}
-      className="max-w-7xl mx-auto space-y-8"
+      className="max-w-4xl mx-auto space-y-6"
     >
-      <header>
-        <h1 className="text-4xl font-bold text-on-surface tracking-tight">Đang phân tích video</h1>
-        <p className="text-lg text-on-surface-variant mt-2">
-          AI của chúng tôi đang thực hiện phân tích đa giai đoạn trên video của bạn.
+      {/* Header */}
+      <header className="space-y-1">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Đang phân tích video</h1>
+        <p className="text-sm text-slate-500 font-medium">
+          {file.name} · {fileSizeMB} MB
         </p>
       </header>
 
-      <div className="grid gap-6 grid-cols-1 xl:grid-cols-3">
-        {/* Left: file info */}
-        <div className="xl:col-span-1 space-y-6">
-          <div className="bg-white rounded-xl shadow-card border border-slate-200 p-4 overflow-hidden">
-            <div className="relative aspect-video rounded-lg overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800"
-                alt="Video thumbnail"
-                className="w-full h-full object-cover"
+      {/* Main card */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8 space-y-8">
+
+        {/* Progress ring + label */}
+        <div className="flex items-center gap-8">
+          {/* Circular progress */}
+          <div className="relative w-24 h-24 shrink-0">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 96 96">
+              <circle cx="48" cy="48" r="40" stroke="#f1f5f9" strokeWidth="8" fill="none" />
+              <motion.circle
+                cx="48" cy="48" r="40"
+                stroke={error ? '#ef4444' : isDone ? '#10b981' : '#0050cb'}
+                strokeWidth="8"
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 40}
+                animate={{ strokeDashoffset: 2 * Math.PI * 40 * (1 - progress / 100) }}
+                transition={{ duration: 0.3, ease: 'linear' }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-white truncate">Campaign_Promo_v2.mp4</h3>
-                  <p className="text-sm text-white/80 mt-1">12 MB • 0:20</p>
-                </div>
-                <button className="bg-white/20 backdrop-blur-md p-2 rounded-lg text-white hover:bg-white/30 transition-colors ml-4">
-                  <Edit2 size={18} />
-                </button>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white">
-                  <Play size={24} fill="currentColor" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Analysis context */}
-          {context && (
-            <div className="bg-white rounded-xl shadow-card border border-slate-200 p-6 space-y-4">
-              <h4 className="text-sm font-bold text-on-surface flex items-center gap-2">
-                <Bolt size={14} className="text-primary" fill="currentColor" />
-                Thiết lập phân tích
-              </h4>
-              <SettingItem label="Loại video" value={context.video_type} />
-              <SettingItem label="Mục tiêu" value={context.goal} />
-              {context.audience && (
-                <SettingItem label="Khán giả" value={context.audience} />
-              )}
-              <div className="flex justify-between items-center py-2">
-                <span className="text-sm text-on-surface-variant">AI Engine</span>
-                <span className="text-sm text-primary font-bold flex items-center gap-1.5">
-                  <Bolt size={14} fill="currentColor" /> CreativeIQ Pro
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right: AI status */}
-        <div className="xl:col-span-2 bg-white rounded-xl shadow-card border border-slate-200 p-8 flex flex-col gap-8">
-          {/* Header row */}
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-on-surface">Tiến trình AI</h2>
-            <div className={`text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-2 border transition-all ${
-              done
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                : 'bg-indigo-50 text-primary border-indigo-100'
-            }`}>
-              {done ? (
-                <>✓ Hoàn tất</>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {error ? (
+                <AlertCircle size={24} className="text-red-500" />
+              ) : isDone ? (
+                <CheckCircle2 size={24} className="text-emerald-500" />
               ) : (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  Đang xử lý
-                </>
+                <span className="text-lg font-black text-primary tabular-nums">{roundedProgress}%</span>
               )}
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div>
-            <div className="flex justify-between items-end mb-3">
-              <span className="text-sm text-on-surface font-semibold">Tiến độ tổng thể</span>
-              <span className="font-mono-data text-primary font-bold text-xl tabular-nums">
-                {Math.round(progress)}%
-              </span>
-            </div>
-            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          {/* Phase status */}
+          <div className="flex-1 space-y-3">
+            <AnimatePresence mode="wait">
               <motion.div
-                animate={{ width: `${progress}%` }}
-                transition={{ ease: 'linear', duration: 0.1 }}
-                className="h-full bg-primary rounded-full shadow-[0_0_8px_rgba(0,80,203,0.35)]"
-              />
-            </div>
-          </div>
+                key={phase + String(error)}
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p className={`text-sm font-black uppercase tracking-widest ${error ? 'text-red-500' : isDone ? 'text-emerald-600' : 'text-primary'
+                  }`}>{phaseLabel}</p>
 
-          {/* Current stage message */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStage.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.25 }}
-              className="flex items-center gap-4 bg-indigo-50/40 border border-indigo-100 rounded-2xl px-6 py-4"
-            >
-              <span className="text-primary">{currentStage.icon}</span>
-              <div>
-                <p className="text-sm font-bold text-primary">{currentStage.label}</p>
-                <p className="text-xs text-on-surface-variant mt-0.5">
-                  Giai đoạn {stageIndex + 1} của {STAGES.length}
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  {error
+                    ? 'Kiểm tra backend và API key'
+                    : isDone
+                      ? 'Đang chuyển đến báo cáo...'
+                      : phase === 'review'
+                        ? 'AI đang xử lý...'
+                        : totalSegs > 0
+                          ? `${segStatuses.filter(s => s.status === 'done').length}/${totalSegs} segment hoàn thành`
+                          : 'Đang tải video và tách segment...'}
                 </p>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+              </motion.div>
+            </AnimatePresence>
 
-          {/* Stage checklist */}
-          <div className="flex flex-col gap-3">
-            {STAGES.map((stage, idx) => {
-              const completed = isStageCompleted(idx);
-              const active = idx === stageIndex && !done;
-              return (
-                <div
-                  key={stage.id}
-                  className={`flex items-center gap-4 px-5 py-3.5 rounded-xl border transition-all duration-300 ${
-                    completed
-                      ? 'bg-white border-slate-200 border-l-2 border-l-primary'
-                      : active
-                        ? 'bg-indigo-50/30 border-primary/30'
-                        : 'bg-white border-slate-100 opacity-50'
+            {/* Linear progress bar */}
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <motion.div
+                className={`h-full rounded-full relative overflow-hidden ${error ? 'bg-red-400' : isDone ? 'bg-emerald-400' : 'bg-primary'
                   }`}
-                >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold transition-all ${
-                    completed
-                      ? 'bg-primary text-white'
-                      : active
-                        ? 'bg-white border-2 border-primary text-primary'
-                        : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    {completed ? '✓' : idx + 1}
-                  </div>
-                  <span className={`text-sm font-semibold ${
-                    completed ? 'text-on-surface' : active ? 'text-primary' : 'text-slate-400'
-                  }`}>
-                    {stage.label}
-                  </span>
-                  {active && (
-                    <div className="ml-auto flex gap-1">
-                      {[0, 1, 2].map(i => (
-                        <span
-                          key={i}
-                          className="w-1 h-1 rounded-full bg-primary animate-bounce"
-                          style={{ animationDelay: `${i * 0.15}s` }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-auto flex justify-end">
-            <button
-              onClick={onCancel}
-              className="text-on-surface font-medium border border-slate-200 px-8 py-3 rounded-xl hover:bg-slate-50 transition-colors shadow-sm active:scale-95 text-sm"
-            >
-              Hủy
-            </button>
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.3, ease: 'linear' }}
+              >
+                {/* Shimmer */}
+                {!error && !isDone && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_infinite]" />
+                )}
+              </motion.div>
+            </div>
           </div>
         </div>
+
+        {/* Error box */}
+        {error && (
+          <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-2xl px-5 py-4">
+            <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-red-700">Phân tích thất bại</p>
+              <p className="text-xs text-red-600 mt-1 break-all">{error}</p>
+              <p className="text-xs text-red-400 mt-2">Đảm bảo Docker đang chạy và VNPT API Credentials đã được thiết lập.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Segment list */}
+        {segStatuses.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiến độ từng segment</p>
+            <div className="space-y-1.5">
+              {segStatuses.map((s, i) => (
+                <SegmentRow key={i} index={i} total={totalSegs}
+                  start={s.start} end={s.end} status={s.status} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Phases */}
+        <div className="flex items-center gap-3">
+          {[
+            { id: 'extract', label: '1. Trích xuất đặc trưng', icon: <Video size={14} /> },
+            { id: 'review', label: '2. Đánh giá AI', icon: <Sparkles size={14} /> },
+          ].map(({ id, label, icon }) => {
+            const isActive = phase === id && !error;
+            const isDonePhase =
+              (id === 'extract' && (phase === 'review' || phase === 'done')) ||
+              (id === 'review' && phase === 'done');
+            return (
+              <div key={id} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all ${isDonePhase ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                  isActive ? 'bg-indigo-50 border-primary/20 text-primary' :
+                    'bg-slate-50 border-slate-100 text-slate-400'
+                }`}>
+                {isDonePhase ? <CheckCircle2 size={12} /> : isActive ? <Loader2 size={12} className="animate-spin" /> : icon}
+                {label}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Context */}
+        {context && (
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest self-center">Ngữ cảnh:</span>
+            {[context.video_type, context.goal, context.audience].filter(Boolean).map((v, i) => (
+              <span key={i} className="text-[10px] font-bold px-2.5 py-1 bg-primary/5 text-primary rounded-lg border border-primary/10">
+                {v}
+              </span>
+            ))}
+            <span className="ml-auto text-[10px] font-bold flex items-center gap-1 text-primary">
+              <Bolt size={10} fill="currentColor" /> AI
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={onCancel}
+          className="text-sm font-semibold text-slate-500 border border-slate-200 px-6 py-2.5 rounded-xl hover:bg-slate-50 active:scale-95 transition-all"
+        >
+          {error ? 'Quay lại' : 'Hủy'}
+        </button>
       </div>
     </motion.div>
-  );
-}
-
-function SettingItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-      <span className="text-sm text-on-surface-variant font-medium">{label}</span>
-      <span className="text-sm text-on-surface font-semibold">{value}</span>
-    </div>
   );
 }
