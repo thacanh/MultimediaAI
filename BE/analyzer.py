@@ -383,10 +383,20 @@ def extract_features_stream(video_path: str, filename: str):
                 all_frames = _read_segment_frames(cap, start, end, fps)
 
                 # Subsample từ buffer đã decode — không seek thêm
+                def _downscale_frames(frm_list: list[np.ndarray], max_h: int = 360) -> list[np.ndarray]:
+                    res_list = []
+                    for f in frm_list:
+                        h_f, w_f = f.shape[:2]
+                        if h_f > max_h:
+                            ratio = max_h / h_f
+                            f = cv2.resize(f, (int(w_f * ratio), max_h), interpolation=cv2.INTER_AREA)
+                        res_list.append(f)
+                    return res_list
+
                 ocr_frames    = _subsample_evenly(all_frames, OCR_FRAMES_PER_SEGMENT)
-                visual_frames = _subsample_evenly(all_frames, VISUAL_FRAMES_PER_SEGMENT)
-                motion_frames = _subsample_consecutive(all_frames, MOTION_FRAMES_PER_SEGMENT, stride=4)
-                cut_frames    = _subsample_cut(all_frames, fps)
+                visual_frames = _downscale_frames(_subsample_evenly(all_frames, VISUAL_FRAMES_PER_SEGMENT), 360)
+                motion_frames = _downscale_frames(_subsample_consecutive(all_frames, MOTION_FRAMES_PER_SEGMENT, stride=4), 360)
+                cut_frames    = _downscale_frames(_subsample_cut(all_frames, fps), 360)
 
                 a_start = int(start * sr)
                 a_end = int(end * sr)
