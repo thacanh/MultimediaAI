@@ -167,6 +167,9 @@ def _subsample_consecutive(frames: list[np.ndarray], n: int, stride: int = 4) ->
     """
     if not frames:
         return []
+    # Nếu số lượng frame quá ít so với stride mong muốn, giảm stride xuống để lấy tối đa số frame
+    if len(frames) < n * stride:
+        stride = max(1, len(frames) // n)
     indices = [i * stride for i in range(n) if i * stride < len(frames)]
     return [frames[i] for i in indices]
 
@@ -397,18 +400,18 @@ def extract_features_stream(video_path: str, filename: str):
                 # Các bộ trích xuất độc lập nhau — chạy song song bằng ThreadPoolExecutor.
                 # GIL không chặn cv2/numpy nên ThreadPool hoạt động hiệu quả cho tác vụ CPU-bound
                 # mà không tốn chi phí tuần tự hóa (serialization) của ProcessPool.
-                def _run_visual_dynamics():   return _valid(extract_visual_dynamics(motion_frames))
-                def _run_motion_level():       return _valid(extract_motion_level(motion_frames))
-                def _run_scene_variation():    return _valid(extract_scene_variation(visual_frames))
-                def _run_cut_frequency():      return _valid(extract_cut_frequency(cut_frames, seg_dur))
+                def _run_visual_dynamics():   return extract_visual_dynamics(motion_frames)
+                def _run_motion_level():       return extract_motion_level(motion_frames)
+                def _run_scene_variation():    return extract_scene_variation(visual_frames)
+                def _run_cut_frequency():      return extract_cut_frequency(cut_frames, seg_dur)
                 def _run_text_density():       return extract_text_density(ocr_frames)
-                def _run_readability():        return _valid(extract_readability(ocr_frames))
-                def _run_visual_focus():       return _valid(extract_visual_focus(visual_frames))
+                def _run_readability():        return extract_readability(ocr_frames)
+                def _run_visual_focus():       return extract_visual_focus(visual_frames)
                 def _run_clutter_level():      return extract_clutter_level(visual_frames)
-                def _run_audio_energy():       return _valid(extract_audio_energy(seg_audio, sr))
-                def _run_pitch_variation():    return _valid(extract_pitch_variation(seg_audio, sr))
-                def _run_speech_rate():        return _valid(extract_speech_rate_from_result(whisper_result, start, end))
-                def _run_sync_alignment():     return _valid(extract_sync_alignment(motion_frames, seg_audio, sr))
+                def _run_audio_energy():       return extract_audio_energy(seg_audio, sr)
+                def _run_pitch_variation():    return extract_pitch_variation(seg_audio, sr)
+                def _run_speech_rate():        return extract_speech_rate_from_result(whisper_result, start, end)
+                def _run_sync_alignment():     return extract_sync_alignment(motion_frames, seg_audio, sr)
 
                 task_map = {
                     "visual_dynamics":  _run_visual_dynamics,
