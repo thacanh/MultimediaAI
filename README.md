@@ -11,7 +11,34 @@ CreativeIQ AI là giải pháp áp dụng công nghệ Trí tuệ Nhân tạo đ
 - **Video demo**: *[Đang cập nhật]*
 ---
 
-## 2. Danh Sách Các API VNPT Đã Tích Hợp
+## 2. Cấu Trúc Thư Mục Dự Án (Repository Structure)
+
+Dự án được tổ chức phân tách rõ ràng giữa Frontend (React SPA) và Backend (FastAPI) cùng các cấu hình Docker hóa:
+
+```text
+creativeiq-ai-hackaithon/
+├── BE/                           # Mã nguồn Backend (FastAPI)
+│   ├── extractor/                # Các mô-đun trích xuất 12 đặc trưng đa phương thức (OpenCV, librosa, OCR, v.v.)
+│   ├── routers/                  # Router API (Xác thực người dùng & Phân tích video)
+│   ├── main.py                   # Điểm khởi chạy FastAPI server
+│   ├── vnpt_client.py            # Client tích hợp trọn bộ 4 dịch vụ VNPT AI
+│   ├── analyzer.py               # Lớp điều phối tính toán chỉ số & Gọi SmartBot sinh nhận xét
+│   ├── requirements.txt          # Danh sách thư viện phụ thuộc Python
+│   └── Dockerfile                # Dockerfile đóng gói Backend
+├── src/                          # Mã nguồn Frontend (React + Vite + TypeScript)
+│   ├── components/               # Các React components dùng chung (UI/UX)
+│   ├── views/                    # Các màn hình chính (Dashboard, Phân tích chi tiết, Lịch sử, Tiến trình)
+│   ├── api.ts                    # Lớp giao tiếp API trích xuất và nhận xét AI
+│   └── main.tsx                  # Điểm khởi chạy Frontend
+├── docker-compose.yml            # Khởi chạy đồng thời MySQL, MinIO, Backend, Frontend và ngrok tunnel
+├── nginx.conf                    # Cấu hình reverse proxy định tuyến /api sang Backend và serve frontend static assets
+├── test_api.py                   # Script Python kiểm thử tự động toàn bộ luồng API Backend
+└── README.md                     # Tài liệu hướng dẫn sử dụng và thuyết minh dự án
+```
+
+---
+
+## 3. Danh Sách Các API VNPT Đã Tích Hợp
 Hệ thống sử dụng tổ hợp các giải pháp AI tiên tiến từ VNPT để phân tích đa phương thức (Hình ảnh, Âm thanh, Ngôn ngữ):
 1. **VNPT SmartReader (OCR API)**: Trích xuất nội dung văn bản xuất hiện trên khung hình (on-screen text), đo lường độ phủ chữ (`text_density`) và độ tương phản/kích cỡ chữ để chấm điểm khả năng đọc (`readability`).
 2. **VNPT SmartVoice (STT API)**: Chuyển đổi lời thoại trong video thành văn bản để tính toán tốc độ nói (`speech_rate`) và phân tích nội dung kịch bản.
@@ -22,7 +49,7 @@ Hệ thống sử dụng tổ hợp các giải pháp AI tiên tiến từ VNPT 
 
 ---
 
-## 3. Hướng Dẫn Cài Đặt & Chạy Thử MVP
+## 4. Hướng Dẫn Cài Đặt & Chạy Thử MVP
 
 Hệ thống hỗ trợ hai phương thức triển khai chính: chạy container hóa bằng Docker (khuyến nghị cho môi trường production/test nhanh) và chạy thủ công (cho môi trường phát triển).
 
@@ -95,7 +122,7 @@ npm run dev
 
 ---
 
-## 4. Hướng Dẫn Kiểm Thử Tự Động (Automated Testing)
+## 5. Hướng Dẫn Kiểm Thử Tự Động (Automated Testing)
 
 Dự án đính kèm sẵn script kiểm thử tự động viết bằng Python tại thư mục gốc: [test_api.py](file:///test_api.py). Script này giúp Ban giám khảo đánh giá và kiểm thử toàn bộ tính năng cốt lõi của API Backend một cách khách quan mà không cần tương tác qua giao diện web.
 
