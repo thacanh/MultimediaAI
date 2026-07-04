@@ -5,9 +5,10 @@ CreativeIQ AI là giải pháp áp dụng công nghệ Trí tuệ Nhân tạo đ
 ---
 
 ## 1. Thông Tin Chung MVP & Tài Liệu Thuyết Minh
-- **Link sản phẩm/MVP**:
-- **Tài liệu thuyết minh MVP (docx/slide)**:
-- **Video demo**:
+- **Link sản phẩm/MVP**: [CreativeIQ AI Frontend (Vercel)](https://multimedia-ai.vercel.app/)
+- **API Backend**: [CreativeIQ API Backend (Hugging Face)](https://thacanh-creativeiq.hf.space/)
+- **Tài liệu thuyết minh MVP (docx/slide)**: [Đề án CreativeIQ (hack.docx)](./hack.docx)
+- **Video demo**: *[Đang cập nhật]*
 ---
 
 ## 2. Danh Sách Các API VNPT Đã Tích Hợp
@@ -23,70 +24,102 @@ Hệ thống sử dụng tổ hợp các giải pháp AI tiên tiến từ VNPT 
 
 ## 3. Hướng Dẫn Cài Đặt & Chạy Thử MVP
 
-### Phương án A: Chạy nhanh bằng Docker Compose (Khuyến nghị)
-Yêu cầu hệ thống đã cài đặt **Docker** và **Docker Compose**. Chỉ cần thực hiện các lệnh sau:
+Hệ thống hỗ trợ hai phương thức triển khai chính: chạy container hóa bằng Docker (khuyến nghị cho môi trường production/test nhanh) và chạy thủ công (cho môi trường phát triển).
 
-1. Copy file cấu hình môi trường:
+### Phương án A: Chạy nhanh bằng Docker Compose (Khuyến nghị)
+Yêu cầu hệ thống đã cài đặt **Docker** và **Docker Compose (hoặc Docker Desktop)**.
+
+1. **Sao chép cấu hình môi trường**:
+   Tạo tệp cấu hình `.env` cho backend và ứng dụng:
    ```bash
    copy .env.example .env
-   # Hoặc trên Linux/macOS: cp .env.example .env
+   # Hoặc trên Linux/macOS:
+   cp .env.example .env
    ```
-2. Khởi chạy toàn bộ hệ thống (Frontend, Backend, MySQL Database, MinIO Storage, ngrok):
+2. **Khởi chạy hệ thống**:
+   Docker Compose sẽ tự động build các image và chạy đồng thời các dịch vụ (FastAPI Backend, React Frontend qua Nginx, MySQL Database, MinIO Object Storage, và ngrok tunnel):
    ```bash
    docker compose up --build -d
    ```
-3. Truy cập giao diện ứng dụng tại: `http://localhost:8080`
+3. **Địa chỉ truy cập**:
+   - Giao diện người dùng (Frontend): `http://localhost:8080` (được định tuyến qua cổng Nginx Gateway).
+   - API Backend Docs (Swagger): `http://localhost:8000/docs` (chạy trực tiếp từ container api).
 
 ---
 
 ### Phương án B: Cài đặt và chạy thủ công (Manual Setup)
 
-#### 1. Cấu hình Backend (FastAPI)
-Yêu cầu Python 3.11+.
+#### 1. Khởi chạy và cấu hình Backend (FastAPI)
+Yêu cầu hệ thống đã cài đặt **Python 3.11+**.
+
 ```bash
+# Di chuyển vào thư mục backend
 cd BE
+
+# Khởi tạo môi trường ảo
 python -m venv .venv
-# Kích hoạt virtual environment:
+
+# Kích hoạt môi trường ảo:
 # Trên Windows:
 .venv\Scripts\activate
 # Trên Linux/macOS:
 source .venv/bin/activate
 
-# Cài đặt thư viện phụ thuộc
+# Nâng cấp pip và cài đặt các thư viện phụ thuộc
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# Tạo file .env từ file ví dụ và cấu hình các API token của VNPT
+# Tạo tệp cấu hình môi trường (.env) và điền các API token của VNPT
 copy .env.example .env
+# Hoặc trên Linux/macOS: cp .env.example .env
 
-# Chạy server development
+# Chạy máy chủ phát triển Backend (port 8000)
 uvicorn main:app --reload --port 8000
 ```
-Tài liệu API Swagger sẽ hiển thị tại: `http://localhost:8000/docs`
+*Tài liệu hướng dẫn sử dụng API (Swagger UI) sẽ khả dụng tại: `http://localhost:8000/docs`*
 
-#### 2. Cấu hình Frontend (React + Vite)
-Yêu cầu Node.js 18+.
+#### 2. Khởi chạy và cấu hình Frontend (React + Vite)
+Yêu cầu hệ thống đã cài đặt **Node.js 18+**.
+
 ```bash
-# Trở lại thư mục gốc
+# Trở về thư mục gốc của dự án
 cd ..
+
+# Cài đặt các gói thư viện phụ thuộc npm
 npm install
+
+# Khởi chạy server phát triển Frontend (Vite)
 npm run dev
 ```
-Truy cập giao diện tại: `http://localhost:5173`
+*Giao diện ứng dụng cục bộ sẽ khả dụng tại: `http://localhost:5173`*
 
 ---
 
-### 4. Hướng Dẫn Kiểm Thử Tự Động (Automated Testing)
-Dự án được đính kèm sẵn script kiểm thử tự động viết bằng Python tại thư mục gốc: [test_api.py](file:///test_api.py).
+## 4. Hướng Dẫn Kiểm Thử Tự Động (Automated Testing)
 
-Script này sẽ tự động:
-1. Gửi request kiểm tra trạng thái sức khỏe của Backend (`/health`).
-2. Tự động khởi tạo một video ngắn 3 giây giả lập có chứa chuyển động hình học và chữ viết.
-3. Gửi tệp tin lên endpoint `/analyse` của Backend để kiểm tra toàn bộ luồng xử lý trích xuất 12 đặc trưng và phản hồi của VNPT SmartBot.
-4. Kiểm tra cấu trúc dữ liệu phản hồi JSON để đảm bảo độ tin cậy và tính nhất quán.
+Dự án đính kèm sẵn script kiểm thử tự động viết bằng Python tại thư mục gốc: [test_api.py](file:///test_api.py). Script này giúp Ban giám khảo đánh giá và kiểm thử toàn bộ tính năng cốt lõi của API Backend một cách khách quan mà không cần tương tác qua giao diện web.
 
-**Cách chạy script test:**
+### Quy trình hoạt động của script test:
+1. **Kiểm tra sức khỏe hệ thống (Health Check)**: Gửi yêu cầu GET tới `/health` để xác thực trạng thái máy chủ Backend đang hoạt động.
+2. **Khởi tạo Video Test**: Sử dụng thư viện OpenCV và NumPy để tự động tạo một tệp tin video kiểm thử tạm thời dài 3 giây (`test_temp.mp4`) có chứa các hoạt cảnh chuyển động tròn và chữ viết OCR.
+3. **Gửi phân tích (Multimodal Analysis)**: Gửi tệp tin video lên endpoint `/analyse` của Backend để trích xuất 12 chỉ số đặc trưng đa phương thức (hình ảnh, âm thanh, text OCR) và gọi VNPT SmartBot để viết nhận xét.
+4. **Xác thực dữ liệu phản hồi (JSON Validation)**: Kiểm tra mã phản hồi HTTP 200, xác thực cấu trúc JSON trả về chứa đầy đủ các phân đoạn, chấm điểm chất lượng (overall score, grade), và đủ 12 đặc trưng.
+5. **Dọn dẹp tài nguyên**: Tự động xóa tệp tin video tạm thời sau khi hoàn tất.
+
+### Hướng dẫn chạy kiểm thử:
+Đảm bảo bạn đã kích hoạt môi trường ảo của Backend và cài đặt thư viện `requests` và `opencv-python`.
+
 ```bash
-# Kích hoạt virtual environment của Backend trước để đảm bảo có đủ thư viện requests và opencv
-# Chạy script test trỏ tới cổng Nginx gateway (mặc định là localhost:8080/api)
+# 1. Kích hoạt môi trường ảo (nếu chưa kích hoạt)
+# Trên Windows:
+BE\.venv\Scripts\activate
+# Trên Linux/macOS:
+source BE/.venv/bin/activate
+
+# 2. Chạy script test trỏ tới Backend đang chạy cục bộ (port 8000)
+python test_api.py http://localhost:8000
+
+# Hoặc trỏ tới Gateway của Docker (port 8080)
 python test_api.py http://localhost:8080/api
 ```
+*Kết quả kiểm thử thành công sẽ hiển thị thông báo: `[+] TẤT CẢ CÁC BÀI KIỂM TRA ĐÃ ĐẠT!`*

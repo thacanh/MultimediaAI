@@ -120,9 +120,13 @@ def _extract_audio(video_path: str, tmp_dir: str) -> tuple[np.ndarray, int]:
         "-ar", "22050", "-ac", "1",
         wav_path,
     ]
-    result = subprocess.run(cmd, capture_output=True)
-    if result.returncode != 0 or not os.path.exists(wav_path):
-        logger.warning("ffmpeg audio extraction failed — returning silent audio")
+    try:
+        result = subprocess.run(cmd, capture_output=True)
+        if result.returncode != 0 or not os.path.exists(wav_path):
+            logger.warning("ffmpeg audio extraction failed — returning silent audio")
+            return np.zeros(22050, dtype=np.float32), 22050
+    except Exception as e:
+        logger.warning(f"ffmpeg audio extraction raised error (is ffmpeg installed?): {e} — returning silent audio")
         return np.zeros(22050, dtype=np.float32), 22050
 
     audio, sr = librosa.load(wav_path, sr=None, mono=True)
@@ -331,16 +335,21 @@ def extract_features_stream(video_path: str, filename: str):
                 "-c:a", "aac", "-b:a", "128k",
                 transcoded_path,
             ]
-            transcode_result = subprocess.run(transcode_cmd, capture_output=True)
-            if transcode_result.returncode != 0 or not os.path.exists(transcoded_path):
-                yield {"type": "error", "message": "Không thể transcode video — codec không được hỗ trợ."}
+            try:
+                transcode_result = subprocess.run(transcode_cmd, capture_output=True)
+                if transcode_result.returncode != 0 or not os.path.exists(transcoded_path):
+                    yield {"type": "error", "message": "Không thể transcode video — codec không được hỗ trợ."}
+                    return
+                video_path = transcoded_path
+                cap = cv2.VideoCapture(video_path)
+                if not cap.isOpened():
+                    yield {"type": "error", "message": "Không thể mở video sau khi transcode."}
+                    return
+                logger.info(f"Transcode thành công → {transcoded_path}")
+            except Exception as e:
+                logger.error(f"Transcode failed: {e}")
+                yield {"type": "error", "message": f"Không thể transcode video (is ffmpeg installed?): {str(e)}"}
                 return
-            video_path = transcoded_path
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                yield {"type": "error", "message": "Không thể mở video sau khi transcode."}
-                return
-            logger.info(f"Transcode thành công → {transcoded_path}")
         else:
             # Reset về đầu vì đã đọc 1 frame test
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
