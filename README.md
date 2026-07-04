@@ -1,6 +1,6 @@
 # CreativeIQ AI — Hệ Thống Đánh Giá Chất Lượng Sáng Tạo Video Ngắn (MVP)
 
-CreativeIQ AI là giải pháp áp dụng công nghệ Trí tuệ Nhân tạo đa phương thức (Multimodal AI) để phân tích, đo lường và đưa ra các đề xuất tối ưu hóa chất lượng kỹ thuật & nghệ thuật của video ngắn (TikTok, Reels, Shorts). Giải pháp giúp các nhà sáng tạo nội dung, doanh nghiệp và agency tối ưu hiệu năng giữ chân người xem (audience retention) trước khi xuất bản.
+CreativeIQ AI là giải pháp áp dụng công nghệ Trí tuệ Nhân tạo đa phương thức (Multimodal AI) để tự động phân tích, kiểm duyệt và đưa ra đề xuất tối ưu hóa chất lượng video ngắn (TikTok, Reels, Shorts). Giải pháp được thiết kế chuyên biệt nhằm giúp các cơ quan báo chí, tòa soạn truyền thông và đài truyền hình nâng cao tương tác người xem (audience retention), chuẩn hóa quy trình biên tập tin tức số và cải thiện hiệu quả vận hành của phòng nội dung trước khi xuất bản.
 
 ---
 
