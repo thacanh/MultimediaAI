@@ -7,8 +7,7 @@ CreativeIQ AI là giải pháp áp dụng công nghệ Trí tuệ Nhân tạo đ
 ## 1. Thông Tin Chung MVP & Tài Liệu Thuyết Minh
 - **Link sản phẩm/MVP**: [CreativeIQ AI Frontend (Vercel)](https://multimedia-ai.vercel.app/)
 - **API Backend**: [CreativeIQ API Backend (Hugging Face)](https://thacanh-creativeiq.hf.space/)
-- **Tài liệu thuyết minh MVP (docx/slide)**: [Đề án CreativeIQ (hack.docx)](./hack.docx)
-- **Video demo**: *[Đang cập nhật]*
+- **Tài liệu**: [Tài liệu dự án]([https://thacanh-creativeiq.hf.space/](https://drive.google.com/drive/folders/1cRAbV4nVdJdvu84quVbuF6w2DYYCaSwz?usp=drive_link))
 ---
 
 ## 2. Cấu Trúc Thư Mục Dự Án (Repository Structure)
