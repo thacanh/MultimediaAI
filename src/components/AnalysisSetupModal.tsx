@@ -64,7 +64,7 @@ export default function AnalysisSetupModal({ isOpen, onClose, onStart }: Analysi
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
                   <Film size={16} className="text-primary" />
-                  Định dạng video
+                  Định dạng video (Khác định dạng video vẫn chạy được nhưng tham số giá trị đích chưa tối ưu cho nền tảng)
                 </label>
                 <div className="grid grid-cols-1 gap-2.5">
                   <button
